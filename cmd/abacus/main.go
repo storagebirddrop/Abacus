@@ -4,22 +4,51 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 
 	"github.com/storagebirddrop/abacus/internal/api"
 	"github.com/storagebirddrop/abacus/internal/config"
 	"github.com/storagebirddrop/abacus/internal/importer"
 	"github.com/storagebirddrop/abacus/internal/importer/nunchuk"
 	"github.com/storagebirddrop/abacus/internal/importer/sparrow"
+	"github.com/storagebirddrop/abacus/internal/repository"
 )
 
 func main() {
 	cfg := config.Load()
 
-	// Register importers
+	// Register importers (order matters for auto-detection)
 	importer.Register(sparrow.New())
 	importer.Register(nunchuk.New())
 
-	router := api.NewRouter(cfg.Version)
+	// Database
+	db, err := repository.Open(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	migrationsPath, err := filepath.Abs(cfg.MigrationsPath)
+	if err != nil {
+		log.Fatalf("migrations path: %v", err)
+	}
+	if err := repository.Migrate(db, migrationsPath); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
+	log.Println("Database migrations applied")
+
+	// Repositories
+	walletRepo := repository.NewWalletRepo(db)
+	txRepo := repository.NewTransactionRepo(db)
+	labelRepo := repository.NewLabelRepo(db)
+	jobRepo := repository.NewImportJobRepo(db)
+
+	// Services
+	importSvc := importer.NewService(db, txRepo, labelRepo, jobRepo)
+
+	// HTTP handlers
+	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
+	router := api.NewRouter(cfg.Version, walletHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)

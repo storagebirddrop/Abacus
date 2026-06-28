@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string) http.Handler {
+func NewRouter(version string, wh *WalletHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -21,42 +21,42 @@ func NewRouter(version string) http.Handler {
 		r.Get("/version", handleVersion(version))
 
 		// Wallets
-		r.Get("/wallets", notImplemented)
-		r.Post("/wallets", notImplemented)
-		r.Get("/wallets/{walletID}", notImplemented)
-		r.Delete("/wallets/{walletID}", notImplemented)
+		r.Get("/wallets", wh.List)
+		r.Post("/wallets", wh.Create)
+		r.Get("/wallets/{walletID}", wh.Get)
+		r.Delete("/wallets/{walletID}", wh.Delete)
 
 		// Import
-		r.Post("/wallets/{walletID}/import", notImplemented)
-		r.Get("/wallets/{walletID}/import-jobs", notImplemented)
-		r.Get("/import-jobs/{jobID}", notImplemented)
+		r.Post("/wallets/{walletID}/import", wh.Import)
+		r.Get("/wallets/{walletID}/import-jobs", wh.ListImportJobs)
+		r.Get("/import-jobs/{jobID}", wh.GetImportJob)
 
 		// Transactions
-		r.Get("/wallets/{walletID}/transactions", notImplemented)
-		r.Get("/wallets/{walletID}/transactions/{txid}", notImplemented)
+		r.Get("/wallets/{walletID}/transactions", wh.ListTransactions)
+		r.Get("/wallets/{walletID}/transactions/{txid}", wh.GetTransaction)
 		r.Patch("/wallets/{walletID}/transactions/{txid}", notImplemented)
 
-		// Ledger
+		// Labels
+		r.Get("/wallets/{walletID}/labels", wh.ListLabels)
+		r.Post("/wallets/{walletID}/labels", notImplemented)
+
+		// Ledger (Phase 2)
 		r.Get("/wallets/{walletID}/ledger", notImplemented)
 		r.Get("/wallets/{walletID}/ledger/{entryID}", notImplemented)
 
-		// Accounting
+		// Accounting (Phase 3)
 		r.Post("/wallets/{walletID}/accounting/run", notImplemented)
 		r.Get("/wallets/{walletID}/accounting/summary", notImplemented)
 		r.Get("/wallets/{walletID}/accounting/cost-basis", notImplemented)
 
-		// UTXOs
+		// UTXOs (Phase 2)
 		r.Get("/wallets/{walletID}/utxos", notImplemented)
 
-		// Labels
-		r.Get("/wallets/{walletID}/labels", notImplemented)
-		r.Post("/wallets/{walletID}/labels", notImplemented)
-
-		// Prices
+		// Prices (Phase 3)
 		r.Get("/prices", notImplemented)
 		r.Post("/prices", notImplemented)
 
-		// Reports
+		// Reports (Phase 4)
 		r.Get("/wallets/{walletID}/reports/balance-sheet", notImplemented)
 		r.Get("/wallets/{walletID}/reports/pnl", notImplemented)
 		r.Get("/wallets/{walletID}/reports/transactions", notImplemented)
