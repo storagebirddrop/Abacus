@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -193,6 +192,5 @@ func (s *Service) Run(ctx context.Context, walletID, filename string, data []byt
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
-	_ = io.Discard
 	return job, nil
 }

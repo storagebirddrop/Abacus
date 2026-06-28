@@ -27,9 +27,7 @@ func (r *UTXORepo) UpsertWithTx(ctx context.Context, tx *sql.Tx, u *domain.UTXO)
 		 ON CONFLICT(txid, vout) DO UPDATE SET
 		   sats=excluded.sats,
 		   block_height=excluded.block_height,
-		   block_time=excluded.block_time,
-		   spent=excluded.spent,
-		   spent_txid=excluded.spent_txid`,
+		   block_time=excluded.block_time`,
 		u.ID, u.WalletID, u.Txid, u.Vout, u.Sats, u.Address,
 		u.BlockHeight, u.BlockTime.Unix(), spent, u.SpentTxid, u.Label,
 	)
