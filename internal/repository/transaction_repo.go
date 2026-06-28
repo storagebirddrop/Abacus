@@ -47,10 +47,14 @@ func (r *TransactionRepo) UpsertInputWithTx(ctx context.Context, tx *sql.Tx, in 
 	if in.ID == "" {
 		in.ID = uuid.New().String()
 	}
+	isMine := 0
+	if in.IsMine {
+		isMine = 1
+	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT OR IGNORE INTO transaction_inputs (id, transaction_id, prev_txid, prev_vout, sats, address, sequence)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		in.ID, in.TransactionID, in.PrevTxid, in.PrevVout, in.Sats, in.Address, in.Sequence,
+		`INSERT OR IGNORE INTO transaction_inputs (id, transaction_id, prev_txid, prev_vout, sats, address, sequence, is_mine)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		in.ID, in.TransactionID, in.PrevTxid, in.PrevVout, in.Sats, in.Address, in.Sequence, isMine,
 	)
 	return err
 }
@@ -59,10 +63,14 @@ func (r *TransactionRepo) UpsertOutputWithTx(ctx context.Context, tx *sql.Tx, ou
 	if out.ID == "" {
 		out.ID = uuid.New().String()
 	}
+	isMine := 0
+	if out.IsMine {
+		isMine = 1
+	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT OR IGNORE INTO transaction_outputs (id, transaction_id, vout, sats, address, script_pubkey)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		out.ID, out.TransactionID, out.Vout, out.Sats, out.Address, out.ScriptPubkey,
+		`INSERT OR IGNORE INTO transaction_outputs (id, transaction_id, vout, sats, address, script_pubkey, is_mine)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		out.ID, out.TransactionID, out.Vout, out.Sats, out.Address, out.ScriptPubkey, isMine,
 	)
 	return err
 }
@@ -102,7 +110,7 @@ func (r *TransactionRepo) GetByTxid(ctx context.Context, walletID, txid string) 
 
 func (r *TransactionRepo) GetInputsByTransactionID(ctx context.Context, txID string) ([]*domain.TransactionInput, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, transaction_id, prev_txid, prev_vout, sats, address, sequence
+		`SELECT id, transaction_id, prev_txid, prev_vout, sats, address, sequence, is_mine
 		 FROM transaction_inputs WHERE transaction_id=?`, txID)
 	if err != nil {
 		return nil, err
@@ -111,9 +119,11 @@ func (r *TransactionRepo) GetInputsByTransactionID(ctx context.Context, txID str
 	var ins []*domain.TransactionInput
 	for rows.Next() {
 		var in domain.TransactionInput
-		if err := rows.Scan(&in.ID, &in.TransactionID, &in.PrevTxid, &in.PrevVout, &in.Sats, &in.Address, &in.Sequence); err != nil {
+		var isMine int
+		if err := rows.Scan(&in.ID, &in.TransactionID, &in.PrevTxid, &in.PrevVout, &in.Sats, &in.Address, &in.Sequence, &isMine); err != nil {
 			return nil, err
 		}
+		in.IsMine = isMine == 1
 		ins = append(ins, &in)
 	}
 	return ins, rows.Err()
@@ -121,7 +131,7 @@ func (r *TransactionRepo) GetInputsByTransactionID(ctx context.Context, txID str
 
 func (r *TransactionRepo) GetOutputsByTransactionID(ctx context.Context, txID string) ([]*domain.TransactionOutput, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, transaction_id, vout, sats, address, script_pubkey
+		`SELECT id, transaction_id, vout, sats, address, script_pubkey, is_mine
 		 FROM transaction_outputs WHERE transaction_id=?`, txID)
 	if err != nil {
 		return nil, err
@@ -130,9 +140,11 @@ func (r *TransactionRepo) GetOutputsByTransactionID(ctx context.Context, txID st
 	var outs []*domain.TransactionOutput
 	for rows.Next() {
 		var out domain.TransactionOutput
-		if err := rows.Scan(&out.ID, &out.TransactionID, &out.Vout, &out.Sats, &out.Address, &out.ScriptPubkey); err != nil {
+		var isMine int
+		if err := rows.Scan(&out.ID, &out.TransactionID, &out.Vout, &out.Sats, &out.Address, &out.ScriptPubkey, &isMine); err != nil {
 			return nil, err
 		}
+		out.IsMine = isMine == 1
 		outs = append(outs, &out)
 	}
 	return outs, rows.Err()

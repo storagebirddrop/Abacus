@@ -181,18 +181,22 @@ func parseNunchukJSON(walletID string, r io.Reader) (*importer.ImportResult, err
 		// Inputs
 		for _, in := range ntx.Inputs {
 			result.Inputs = append(result.Inputs, domain.TransactionInput{
-				PrevTxid: in.Txid,
-				PrevVout: in.Vout,
-				Sats:     in.Value,
-				Address:  in.Address,
+				ParentTxid: ntx.Txid,
+				PrevTxid:   in.Txid,
+				PrevVout:   in.Vout,
+				Sats:       in.Value,
+				Address:    in.Address,
+				IsMine:     in.Mine,
 			})
 		}
 		// Outputs
 		for idx, out := range ntx.Outputs {
 			result.Outputs = append(result.Outputs, domain.TransactionOutput{
-				Vout:    idx,
-				Sats:    out.Value,
-				Address: out.Address,
+				ParentTxid: ntx.Txid,
+				Vout:       idx,
+				Sats:       out.Value,
+				Address:    out.Address,
+				IsMine:     out.Mine,
 			})
 		}
 

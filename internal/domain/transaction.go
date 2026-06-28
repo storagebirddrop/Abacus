@@ -22,6 +22,10 @@ type TransactionInput struct {
 	Sats          int64  `json:"sats"`
 	Address       string `json:"address"`
 	Sequence      uint32 `json:"sequence"`
+	IsMine        bool   `json:"is_mine"`
+
+	// ParentTxid is set during import for linking; not persisted directly.
+	ParentTxid string `json:"-"`
 }
 
 type TransactionOutput struct {
@@ -31,4 +35,8 @@ type TransactionOutput struct {
 	Sats          int64  `json:"sats"`
 	Address       string `json:"address"`
 	ScriptPubkey  string `json:"script_pubkey"`
+	IsMine        bool   `json:"is_mine"`
+
+	// ParentTxid is set during import for linking; not persisted directly.
+	ParentTxid string `json:"-"`
 }

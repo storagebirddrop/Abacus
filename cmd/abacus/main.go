@@ -17,9 +17,9 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Register importers (order matters for auto-detection)
-	importer.Register(sparrow.New())
+	// Register importers — Nunchuk first so it claims BSMS files before Sparrow.
 	importer.Register(nunchuk.New())
+	importer.Register(sparrow.New())
 
 	// Database
 	db, err := repository.Open(cfg.DBPath)
@@ -41,10 +41,12 @@ func main() {
 	walletRepo := repository.NewWalletRepo(db)
 	txRepo := repository.NewTransactionRepo(db)
 	labelRepo := repository.NewLabelRepo(db)
+	ledgerRepo := repository.NewLedgerRepo(db)
+	utxoRepo := repository.NewUTXORepo(db)
 	jobRepo := repository.NewImportJobRepo(db)
 
 	// Services
-	importSvc := importer.NewService(db, txRepo, labelRepo, jobRepo)
+	importSvc := importer.NewService(db, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
 
 	// HTTP handlers
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
