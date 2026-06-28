@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/storagebirddrop/abacus/internal/accounting"
 	"github.com/storagebirddrop/abacus/internal/api"
 	"github.com/storagebirddrop/abacus/internal/config"
 	"github.com/storagebirddrop/abacus/internal/importer"
@@ -44,13 +45,17 @@ func main() {
 	ledgerRepo := repository.NewLedgerRepo(db)
 	utxoRepo := repository.NewUTXORepo(db)
 	jobRepo := repository.NewImportJobRepo(db)
+	priceRepo := repository.NewPriceSnapshotRepo(db)
+	cbRepo := repository.NewCostBasisRepo(db)
 
 	// Services
 	importSvc := importer.NewService(db, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
+	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
 
 	// HTTP handlers
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
-	router := api.NewRouter(cfg.Version, walletHandler)
+	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)
