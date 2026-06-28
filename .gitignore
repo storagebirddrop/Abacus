@@ -1,0 +1,20 @@
+# Go
+/abacus
+*.exe
+*.test
+*.out
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Config
+.env
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# OS
+.DS_Store
