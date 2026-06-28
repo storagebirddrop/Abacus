@@ -1,0 +1,15 @@
+services:
+  abacus:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - abacus-data:/app/data
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/abacus.db
+      - ENV=production
+    restart: unless-stopped
+
+volumes:
+  abacus-data:

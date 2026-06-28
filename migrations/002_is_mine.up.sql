@@ -1,0 +1,2 @@
+ALTER TABLE transaction_inputs  ADD COLUMN is_mine INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE transaction_outputs ADD COLUMN is_mine INTEGER NOT NULL DEFAULT 0;

@@ -1,0 +1,677 @@
+openapi: 3.1.0
+info:
+  title: Abacus Bitcoin Accounting Engine API
+  version: 0.1.0
+  description: |
+    Self-hosted Bitcoin accounting engine.
+    Import wallet data from Sparrow or Nunchuk, build an immutable ledger,
+    and run FIFO/Average Cost accounting.
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+tags:
+  - name: system
+  - name: wallets
+  - name: import
+  - name: transactions
+  - name: ledger
+  - name: accounting
+  - name: utxos
+  - name: labels
+  - name: prices
+  - name: reports
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 0.1.0
+
+  /version:
+    get:
+      tags: [system]
+      summary: Version info
+      responses:
+        "200":
+          description: Version string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+
+  /wallets:
+    get:
+      tags: [wallets]
+      summary: List all wallets
+      responses:
+        "200":
+          description: Array of wallets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Wallet"
+    post:
+      tags: [wallets]
+      summary: Create wallet from descriptor or BSMS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWalletRequest"
+      responses:
+        "201":
+          description: Wallet created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /wallets/{walletID}:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [wallets]
+      summary: Get wallet detail
+      responses:
+        "200":
+          description: Wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [wallets]
+      summary: Remove wallet (soft delete)
+      responses:
+        "204":
+          description: Deleted
+
+  /wallets/{walletID}/import:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    post:
+      tags: [import]
+      summary: Import wallet data (Sparrow, Nunchuk, BSMS, BIP329)
+      description: |
+        Upload any supported export file. Abacus auto-detects the format.
+        Supported: Sparrow JSON/CSV, Nunchuk JSON, BSMS (.bsms), BIP329 (.jsonl)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "202":
+          description: Import job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /wallets/{walletID}/import-jobs:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [import]
+      summary: List import history for wallet
+      responses:
+        "200":
+          description: Import jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImportJob"
+
+  /import-jobs/{jobID}:
+    parameters:
+      - name: jobID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [import]
+      summary: Get import job status
+      responses:
+        "200":
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+
+  /wallets/{walletID}/transactions:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+      - $ref: "#/components/parameters/Page"
+      - $ref: "#/components/parameters/Limit"
+    get:
+      tags: [transactions]
+      summary: List transactions
+      responses:
+        "200":
+          description: Paginated transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTransactions"
+
+  /wallets/{walletID}/transactions/{txid}:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+      - name: txid
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [transactions]
+      summary: Get transaction detail
+      responses:
+        "200":
+          description: Transaction with inputs/outputs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionDetail"
+    patch:
+      tags: [transactions]
+      summary: Update transaction metadata
+      description: Updates category, note, or counterparty. Creates a JournalEntry.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTransactionRequest"
+      responses:
+        "200":
+          description: Updated transaction
+
+  /wallets/{walletID}/ledger:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+      - $ref: "#/components/parameters/Page"
+      - $ref: "#/components/parameters/Limit"
+    get:
+      tags: [ledger]
+      summary: Get full ledger
+      responses:
+        "200":
+          description: Paginated ledger entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedLedger"
+
+  /wallets/{walletID}/ledger/{entryID}:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+      - name: entryID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [ledger]
+      summary: Get ledger entry with audit trail
+      responses:
+        "200":
+          description: Ledger entry with journal entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerEntryDetail"
+
+  /wallets/{walletID}/accounting/run:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    post:
+      tags: [accounting]
+      summary: Run cost basis calculation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method:
+                  type: string
+                  enum: [fifo, avgcost]
+                  default: fifo
+                currency:
+                  type: string
+                  default: EUR
+      responses:
+        "202":
+          description: Calculation started
+
+  /wallets/{walletID}/accounting/summary:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [accounting]
+      summary: Portfolio summary
+      responses:
+        "200":
+          description: Summary with balance, cost basis, unrealized gain
+
+  /wallets/{walletID}/accounting/cost-basis:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [accounting]
+      summary: Per-UTXO cost basis
+      responses:
+        "200":
+          description: Cost basis records
+
+  /wallets/{walletID}/utxos:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [utxos]
+      summary: UTXO set
+      responses:
+        "200":
+          description: UTXOs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UTXO"
+
+  /wallets/{walletID}/labels:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [labels]
+      summary: List BIP329 labels
+      responses:
+        "200":
+          description: Labels
+    post:
+      tags: [labels]
+      summary: Create or update label (BIP329)
+      responses:
+        "201":
+          description: Label created
+
+  /prices:
+    get:
+      tags: [prices]
+      summary: Historical BTC prices
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: EUR
+        - name: from
+          in: query
+          schema:
+            type: integer
+            description: Unix timestamp
+        - name: to
+          in: query
+          schema:
+            type: integer
+            description: Unix timestamp
+      responses:
+        "200":
+          description: Price snapshots
+    post:
+      tags: [prices]
+      summary: Add manual price entry
+      responses:
+        "201":
+          description: Price recorded
+
+  /wallets/{walletID}/reports/balance-sheet:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [reports]
+      summary: Balance sheet report
+      responses:
+        "200":
+          description: Balance sheet
+
+  /wallets/{walletID}/reports/pnl:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [reports]
+      summary: Profit and loss report
+      responses:
+        "200":
+          description: P&L
+
+  /wallets/{walletID}/reports/transactions:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+      - name: format
+        in: query
+        schema:
+          type: string
+          enum: [json, csv, pdf, xlsx]
+          default: json
+    get:
+      tags: [reports]
+      summary: Transaction report export
+      responses:
+        "200":
+          description: Report file
+
+components:
+  parameters:
+    WalletID:
+      name: walletID
+      in: path
+      required: true
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 500
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        descriptor:
+          type: string
+        fingerprint:
+          type: string
+        type:
+          type: string
+          enum: [singlesig, multisig]
+        network:
+          type: string
+          enum: [mainnet, testnet, signet]
+        source:
+          type: string
+          enum: [sparrow, nunchuk, bsms, manual]
+        created_at:
+          type: string
+          format: date-time
+
+    CreateWalletRequest:
+      type: object
+      required: [name, descriptor]
+      properties:
+        name:
+          type: string
+        descriptor:
+          type: string
+          description: Output descriptor or BSMS content
+        network:
+          type: string
+          enum: [mainnet, testnet, signet]
+          default: mainnet
+
+    ImportJob:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        source:
+          type: string
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, done, failed]
+        records_imported:
+          type: integer
+        error_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        txid:
+          type: string
+        block_height:
+          type: integer
+        block_time:
+          type: string
+          format: date-time
+        fee_sats:
+          type: integer
+        confirmed:
+          type: boolean
+
+    TransactionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Transaction"
+        - type: object
+          properties:
+            inputs:
+              type: array
+              items:
+                $ref: "#/components/schemas/TransactionInput"
+            outputs:
+              type: array
+              items:
+                $ref: "#/components/schemas/TransactionOutput"
+
+    TransactionInput:
+      type: object
+      properties:
+        prev_txid:
+          type: string
+        prev_vout:
+          type: integer
+        sats:
+          type: integer
+        address:
+          type: string
+
+    TransactionOutput:
+      type: object
+      properties:
+        vout:
+          type: integer
+        sats:
+          type: integer
+        address:
+          type: string
+
+    UpdateTransactionRequest:
+      type: object
+      properties:
+        category:
+          type: string
+        note:
+          type: string
+        counterparty_id:
+          type: string
+
+    PaginatedTransactions:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    LedgerEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        transaction_id:
+          type: string
+        type:
+          type: string
+          enum: [debit, credit]
+        sats:
+          type: integer
+        fiat_amount:
+          type: integer
+          description: Amount in cents
+        fiat_currency:
+          type: string
+        category:
+          type: string
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    LedgerEntryDetail:
+      allOf:
+        - $ref: "#/components/schemas/LedgerEntry"
+        - type: object
+          properties:
+            journal:
+              type: array
+              items:
+                $ref: "#/components/schemas/JournalEntry"
+
+    JournalEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        field_changed:
+          type: string
+        old_value:
+          type: string
+        new_value:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PaginatedLedger:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LedgerEntry"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    UTXO:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        txid:
+          type: string
+        vout:
+          type: integer
+        sats:
+          type: integer
+        address:
+          type: string
+        block_height:
+          type: integer
+        spent:
+          type: boolean
+        label:
+          type: string
