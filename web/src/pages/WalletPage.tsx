@@ -28,6 +28,25 @@ function fmtCents(cents: number | null) {
   return `€${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
 }
 
+function ExportBar({ walletID, report }: { walletID: string; report: 'transactions' | 'pnl' | 'balance-sheet' }) {
+  const base = `/api/v1/wallets/${walletID}/reports/${report}`
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <span className="text-xs text-slate-500 font-medium">Export:</span>
+      {(['csv', 'xlsx', 'pdf'] as const).map((fmt) => (
+        <a
+          key={fmt}
+          href={`${base}?format=${fmt}`}
+          download
+          className="text-xs px-2 py-1 rounded border border-slate-200 hover:bg-slate-50 text-slate-600 uppercase font-mono"
+        >
+          {fmt}
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function TransactionsTab({ walletID }: { walletID: string }) {
   const [txs, setTxs] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
@@ -52,6 +71,7 @@ function TransactionsTab({ walletID }: { walletID: string }) {
 
   return (
     <div>
+      <ExportBar walletID={walletID} report="transactions" />
       {txs.length === 0 ? (
         <p className="text-slate-400 p-6">No transactions. Import a wallet file first.</p>
       ) : (
@@ -186,6 +206,10 @@ function AccountingTab({ walletID }: { walletID: string }) {
         </div>
       )}
 
+      <div className="flex gap-2 mt-2">
+        <ExportBar walletID={walletID} report="pnl" />
+        <ExportBar walletID={walletID} report="balance-sheet" />
+      </div>
       {records.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
