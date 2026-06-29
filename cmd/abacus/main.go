@@ -17,6 +17,9 @@ import (
 	"github.com/storagebirddrop/abacus/internal/importer/sparrow"
 	"github.com/storagebirddrop/abacus/internal/importer/specter"
 	"github.com/storagebirddrop/abacus/internal/repository"
+	abacussync "github.com/storagebirddrop/abacus/internal/sync"
+	"github.com/storagebirddrop/abacus/internal/sync/esplora"
+	electrumbackend "github.com/storagebirddrop/abacus/internal/sync/electrum"
 )
 
 func main() {
@@ -61,16 +64,31 @@ func main() {
 	jobRepo := repository.NewImportJobRepo(db)
 	priceRepo := repository.NewPriceSnapshotRepo(db)
 	cbRepo := repository.NewCostBasisRepo(db)
+	syncJobRepo := repository.NewSyncJobRepo(db)
+	syncStateRepo := repository.NewSyncStateRepo(db)
+
+	// Blockchain backend selection.
+	var blockchainBackend abacussync.BlockchainBackend
+	switch cfg.BlockchainBackend {
+	case "electrum":
+		blockchainBackend = electrumbackend.New(cfg.ElectrumHost, cfg.ElectrumPort, cfg.ElectrumTLS)
+		log.Printf("Blockchain backend: electrum (%s:%d, tls=%v)", cfg.ElectrumHost, cfg.ElectrumPort, cfg.ElectrumTLS)
+	default:
+		blockchainBackend = esplora.New(cfg.EsploraURL, cfg.EsploraRateMS)
+		log.Printf("Blockchain backend: esplora (%s)", cfg.EsploraURL)
+	}
 
 	// Services
 	importSvc := importer.NewService(db, walletRepo, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
 	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
+	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, blockchainBackend)
 
 	// HTTP handlers
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
 	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
 	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler)
+	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)

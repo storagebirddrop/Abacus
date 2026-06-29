@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler) http.Handler {
+func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -60,6 +60,11 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		r.Get("/wallets/{walletID}/reports/balance-sheet", rh.BalanceSheet)
 		r.Get("/wallets/{walletID}/reports/pnl", rh.PnL)
 		r.Get("/wallets/{walletID}/reports/transactions", rh.Transactions)
+
+		// Blockchain sync (Phase 7)
+		r.Post("/wallets/{walletID}/sync", sh.StartSync)
+		r.Get("/wallets/{walletID}/sync-jobs", sh.ListSyncJobs)
+		r.Get("/sync-jobs/{jobID}", sh.GetSyncJob)
 	})
 
 	return r
