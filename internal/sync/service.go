@@ -48,16 +48,20 @@ type syncStateRepo interface {
 	Upsert(ctx context.Context, s *domain.SyncState) error
 }
 
+// BackendFactory resolves the active BlockchainBackend from current settings.
+// Defined as a function so it can be provided by main without creating an import cycle.
+type BackendFactory func(ctx context.Context) (BlockchainBackend, error)
+
 // Service orchestrates blockchain sync for a wallet.
 type Service struct {
-	db            Storer
-	walletRepo    walletRepo
-	txRepo        txRepo
-	ledgerRepo    ledgerRepo
-	utxoRepo      utxoRepo
-	syncJobRepo   syncJobRepo
-	syncStateRepo syncStateRepo
-	backend       BlockchainBackend
+	db             Storer
+	walletRepo     walletRepo
+	txRepo         txRepo
+	ledgerRepo     ledgerRepo
+	utxoRepo       utxoRepo
+	syncJobRepo    syncJobRepo
+	syncStateRepo  syncStateRepo
+	backendFactory BackendFactory
 }
 
 func NewService(
@@ -68,23 +72,28 @@ func NewService(
 	utxoRepo utxoRepo,
 	syncJobRepo syncJobRepo,
 	syncStateRepo syncStateRepo,
-	backend BlockchainBackend,
+	backendFactory BackendFactory,
 ) *Service {
 	return &Service{
-		db:            db,
-		walletRepo:    walletRepo,
-		txRepo:        txRepo,
-		ledgerRepo:    ledgerRepo,
-		utxoRepo:      utxoRepo,
-		syncJobRepo:   syncJobRepo,
-		syncStateRepo: syncStateRepo,
-		backend:       backend,
+		db:             db,
+		walletRepo:     walletRepo,
+		txRepo:         txRepo,
+		ledgerRepo:     ledgerRepo,
+		utxoRepo:       utxoRepo,
+		syncJobRepo:    syncJobRepo,
+		syncStateRepo:  syncStateRepo,
+		backendFactory: backendFactory,
 	}
 }
 
 // StartSync creates a sync job and starts the sync in a goroutine.
 // Returns the job ID immediately so the caller can poll for status.
 func (s *Service) StartSync(ctx context.Context, walletID string) (string, error) {
+	backend, err := s.backendFactory(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	wallet, err := s.walletRepo.GetByID(ctx, walletID)
 	if err != nil {
 		return "", fmt.Errorf("get wallet: %w", err)
@@ -97,7 +106,7 @@ func (s *Service) StartSync(ctx context.Context, walletID string) (string, error
 	job := &domain.SyncJob{
 		ID:        uuid.New().String(),
 		WalletID:  walletID,
-		Backend:   s.backend.Name(),
+		Backend:   backend.Name(),
 		Status:    "pending",
 		StartedAt: now,
 	}
@@ -108,7 +117,7 @@ func (s *Service) StartSync(ctx context.Context, walletID string) (string, error
 	// Run sync asynchronously.
 	go func() {
 		bgCtx := context.Background()
-		if err := s.runSync(bgCtx, wallet, job); err != nil {
+		if err := s.runSync(bgCtx, wallet, job, backend); err != nil {
 			fin := time.Now().UTC()
 			job.Status = "failed"
 			job.ErrorMsg = err.Error()
@@ -120,7 +129,7 @@ func (s *Service) StartSync(ctx context.Context, walletID string) (string, error
 	return job.ID, nil
 }
 
-func (s *Service) runSync(ctx context.Context, wallet *domain.Wallet, job *domain.SyncJob) error {
+func (s *Service) runSync(ctx context.Context, wallet *domain.Wallet, job *domain.SyncJob, backend BlockchainBackend) error {
 	job.Status = "running"
 	if err := s.syncJobRepo.Update(ctx, job); err != nil {
 		return err
@@ -151,7 +160,7 @@ func (s *Service) runSync(ctx context.Context, wallet *domain.Wallet, job *domai
 		totalScanned := 0
 		consecutiveEmpty := 0
 		for _, addr := range addrs {
-			txs, err := s.backend.GetTransactions(ctx, addr)
+			txs, err := backend.GetTransactions(ctx, addr)
 			if err != nil {
 				return totalScanned, fmt.Errorf("fetch tx for %s: %w", addr, err)
 			}
@@ -182,7 +191,7 @@ func (s *Service) runSync(ctx context.Context, wallet *domain.Wallet, job *domai
 	job.AddressesScanned = rScanned + cScanned
 
 	// Get current block height.
-	height, _ := s.backend.BlockHeight(ctx)
+	height, _ := backend.BlockHeight(ctx)
 
 	// Convert TxRecords to domain types.
 	txSlice := make([]domain.Transaction, 0, len(txByID))

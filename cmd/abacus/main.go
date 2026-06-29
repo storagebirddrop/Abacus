@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,8 +19,8 @@ import (
 	"github.com/storagebirddrop/abacus/internal/importer/specter"
 	"github.com/storagebirddrop/abacus/internal/repository"
 	abacussync "github.com/storagebirddrop/abacus/internal/sync"
-	"github.com/storagebirddrop/abacus/internal/sync/esplora"
 	electrumbackend "github.com/storagebirddrop/abacus/internal/sync/electrum"
+	"github.com/storagebirddrop/abacus/internal/sync/esplora"
 )
 
 func main() {
@@ -66,22 +67,46 @@ func main() {
 	cbRepo := repository.NewCostBasisRepo(db)
 	syncJobRepo := repository.NewSyncJobRepo(db)
 	syncStateRepo := repository.NewSyncStateRepo(db)
+	settingsRepo := repository.NewSettingsRepo(db)
 
-	// Blockchain backend selection.
-	var blockchainBackend abacussync.BlockchainBackend
-	switch cfg.BlockchainBackend {
-	case "electrum":
-		blockchainBackend = electrumbackend.New(cfg.ElectrumHost, cfg.ElectrumPort, cfg.ElectrumTLS)
-		log.Printf("Blockchain backend: electrum (%s:%d, tls=%v)", cfg.ElectrumHost, cfg.ElectrumPort, cfg.ElectrumTLS)
-	default:
-		blockchainBackend = esplora.New(cfg.EsploraURL, cfg.EsploraRateMS)
-		log.Printf("Blockchain backend: esplora (%s)", cfg.EsploraURL)
+	// BackendFactory: builds the active BlockchainBackend from DB settings at call time.
+	// Sync is disabled by default; set sync_enabled=true in Settings to activate.
+	backendFactory := func(ctx context.Context) (abacussync.BlockchainBackend, error) {
+		m, err := settingsRepo.GetAll(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("load settings: %w", err)
+		}
+		if m["sync_enabled"] != "true" {
+			return nil, fmt.Errorf("blockchain sync is disabled — enable it in Settings")
+		}
+		get := func(key, def string) string {
+			if v, ok := m[key]; ok && v != "" {
+				return v
+			}
+			return def
+		}
+		switch get("blockchain_backend", "esplora") {
+		case "electrum":
+			port := 50002
+			if v := m["electrum_port"]; v != "" {
+				if n, err := fmt.Sscanf(v, "%d", &port); n == 0 || err != nil {
+					port = 50002
+				}
+			}
+			return electrumbackend.New(get("electrum_host", "electrum.blockstream.info"), port, get("electrum_tls", "true") == "true"), nil
+		default:
+			rateMS := 100
+			if v := m["esplora_rate_ms"]; v != "" {
+				fmt.Sscanf(v, "%d", &rateMS)
+			}
+			return esplora.New(get("esplora_url", "https://mempool.space/api"), rateMS), nil
+		}
 	}
 
 	// Services
 	importSvc := importer.NewService(db, walletRepo, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
 	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
-	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, blockchainBackend)
+	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, backendFactory)
 
 	// HTTP handlers
 	journalRepo := repository.NewJournalRepo(db)
@@ -91,7 +116,8 @@ func main() {
 	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo)
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
 	portfolioHandler := api.NewPortfolioHandler(walletRepo, cbRepo, utxoRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler)
+	settingsHandler := api.NewSettingsHandler(settingsRepo)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)

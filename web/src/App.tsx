@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import WalletsPage from './pages/WalletsPage'
 import WalletPage from './pages/WalletPage'
 import PricesPage from './pages/PricesPage'
+import SettingsPage from './pages/SettingsPage'
 
 const router = createBrowserRouter([
   {
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
       { path: 'wallets', element: <WalletsPage /> },
       { path: 'wallets/:id', element: <WalletPage /> },
       { path: 'prices', element: <PricesPage /> },
+      { path: 'settings', element: <SettingsPage /> },
     ],
   },
 ])
