@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -25,20 +27,41 @@ type costBasisRepo interface {
 	ListByWallet(ctx context.Context, walletID string) ([]*domain.CostBasisRecord, error)
 }
 
-// AccountingHandler handles all Phase 3 accounting and price endpoints.
-type AccountingHandler struct {
-	svc       accountingSvc
-	priceRepo priceSnapRepo
-	cbRepo    costBasisRepo
+type accountingWalletRepo interface {
+	GetByID(ctx context.Context, id string) (*domain.Wallet, error)
 }
 
-func NewAccountingHandler(svc accountingSvc, priceRepo priceSnapRepo, cbRepo costBasisRepo) *AccountingHandler {
-	return &AccountingHandler{svc: svc, priceRepo: priceRepo, cbRepo: cbRepo}
+// AccountingHandler handles all Phase 3 accounting and price endpoints.
+type AccountingHandler struct {
+	svc        accountingSvc
+	priceRepo  priceSnapRepo
+	cbRepo     costBasisRepo
+	walletRepo accountingWalletRepo
+}
+
+func NewAccountingHandler(svc accountingSvc, priceRepo priceSnapRepo, cbRepo costBasisRepo, walletRepo accountingWalletRepo) *AccountingHandler {
+	return &AccountingHandler{svc: svc, priceRepo: priceRepo, cbRepo: cbRepo, walletRepo: walletRepo}
+}
+
+func (h *AccountingHandler) requireWallet(w http.ResponseWriter, r *http.Request, walletID string) bool {
+	_, err := h.walletRepo.GetByID(r.Context(), walletID)
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "wallet not found"})
+	} else {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return false
 }
 
 // RunAccounting handles POST /wallets/{walletID}/accounting/run
 func (h *AccountingHandler) RunAccounting(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 
 	var req struct {
 		Method   string `json:"method"`   // "fifo" | "avgcost"
@@ -79,6 +102,9 @@ func (h *AccountingHandler) RunAccounting(w http.ResponseWriter, r *http.Request
 // GetSummary handles GET /wallets/{walletID}/accounting/summary
 func (h *AccountingHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	sum, err := h.svc.Summary(r.Context(), walletID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -90,6 +116,9 @@ func (h *AccountingHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 // ListCostBasis handles GET /wallets/{walletID}/accounting/cost-basis
 func (h *AccountingHandler) ListCostBasis(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	records, err := h.cbRepo.ListByWallet(r.Context(), walletID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})

@@ -84,7 +84,7 @@ web/                        React + Vite frontend
 ## Key Invariants
 
 1. **Satoshis only** — all monetary values are `int64` satoshis or cents, never floats
-2. **LedgerEntry is immutable** — never UPDATE ledger_entries; use JournalEntry for corrections
+2. **LedgerEntry financial fields are immutable** — never UPDATE `sats`, `fiat_amount`, `fiat_currency`, or `transaction_id` on `ledger_entries`. Metadata fields (`category`, `note`, `counterparty_id`) may be updated via `UpdateMetadata`. Use `JournalEntry` to record any correction.
 3. **No private data** — never store keys, seeds, or signing material; never import `.mv.db` (encrypted)
 4. **Layer discipline** — each layer only imports from the layer below
 5. **Plugin importers** — core never references Sparrow/Nunchuk directly

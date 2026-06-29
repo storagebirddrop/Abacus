@@ -3,6 +3,8 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -68,9 +70,25 @@ func (h *ReportHandler) walletName(ctx context.Context, id string) string {
 	return w.Name
 }
 
+func (h *ReportHandler) requireWallet(w http.ResponseWriter, r *http.Request, walletID string) bool {
+	_, err := h.walletRepo.GetByID(r.Context(), walletID)
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "wallet not found"})
+	} else {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return false
+}
+
 // Transactions handles GET /wallets/{walletID}/reports/transactions
 func (h *ReportHandler) Transactions(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	format := reportFormat(r)
 	currency := reportCurrency(r)
 
@@ -133,6 +151,9 @@ func (h *ReportHandler) Transactions(w http.ResponseWriter, r *http.Request) {
 // PnL handles GET /wallets/{walletID}/reports/pnl
 func (h *ReportHandler) PnL(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	format := reportFormat(r)
 	currency := reportCurrency(r)
 
@@ -206,6 +227,9 @@ func (h *ReportHandler) PnL(w http.ResponseWriter, r *http.Request) {
 // BalanceSheet handles GET /wallets/{walletID}/reports/balance-sheet
 func (h *ReportHandler) BalanceSheet(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	format := reportFormat(r)
 	currency := reportCurrency(r)
 
@@ -277,6 +301,9 @@ func (h *ReportHandler) BalanceSheet(w http.ResponseWriter, r *http.Request) {
 // TaxReport handles GET /wallets/{walletID}/reports/tax
 func (h *ReportHandler) TaxReport(w http.ResponseWriter, r *http.Request) {
 	walletID := chi.URLParam(r, "walletID")
+	if !h.requireWallet(w, r, walletID) {
+		return
+	}
 	jurisdiction := strings.ToLower(r.URL.Query().Get("jurisdiction"))
 	format := reportFormat(r)
 	year := parseYear(r)
