@@ -69,6 +69,17 @@ func (r *WalletRepo) Delete(ctx context.Context, id string) error {
 	return err
 }
 
+// UpdateDescriptor sets the descriptor and fingerprint on a wallet only if the
+// wallet currently has no descriptor. Existing user data is never overwritten.
+func (r *WalletRepo) UpdateDescriptor(ctx context.Context, id, descriptor, fingerprint string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE wallets SET descriptor=?, fingerprint=?, updated_at=?
+		 WHERE id=? AND (descriptor='' OR descriptor IS NULL)`,
+		descriptor, fingerprint, time.Now().UTC().Unix(), id,
+	)
+	return err
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }

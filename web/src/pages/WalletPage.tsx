@@ -296,7 +296,11 @@ function ImportTab({ walletID }: { walletID: string }) {
       <form onSubmit={handleUpload} className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Upload wallet export</label>
-          <p className="text-xs text-slate-500 mb-2">Supports Sparrow JSON, Nunchuk JSON, BSMS, BIP329 labels (.jsonl)</p>
+          <p className="text-xs text-slate-500 mb-2">
+            Supported formats: Sparrow (JSON, CSV, BIP329 .jsonl) · Nunchuk (JSON, BSMS, BIP329 .jsonl) ·
+            Coldcard (coldcard-export.json) · Specter Desktop (JSON descriptor export) ·
+            Electrum (JSON wallet export, unencrypted only) · Generic JSON with descriptor field (Jade, Passport, SeedSigner, etc.)
+          </p>
           <input
             ref={fileRef}
             type="file"
