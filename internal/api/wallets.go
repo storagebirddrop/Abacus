@@ -51,6 +51,7 @@ type jobStore interface {
 
 type labelStore interface {
 	ListByWallet(ctx context.Context, walletID string) ([]*domain.Label, error)
+	UpsertWithTx(ctx context.Context, tx *sql.Tx, l *domain.Label) error
 }
 
 type importService interface {
@@ -279,6 +280,87 @@ func (h *WalletHandler) ListLabels(w http.ResponseWriter, r *http.Request) {
 		labels = []*domain.Label{}
 	}
 	writeJSON(w, http.StatusOK, labels)
+}
+
+func (h *WalletHandler) CreateLabel(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "walletID")
+
+	var req struct {
+		Type      string `json:"type"`
+		Ref       string `json:"ref"`
+		Label     string `json:"label"`
+		Origin    string `json:"origin,omitempty"`
+		Spendable *bool  `json:"spendable,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid JSON"))
+		return
+	}
+	switch req.Type {
+	case "tx", "addr", "xpub", "input", "output":
+	default:
+		writeError(w, http.StatusBadRequest, errors.New("type must be tx, addr, xpub, input, or output"))
+		return
+	}
+	if req.Ref == "" || req.Label == "" {
+		writeError(w, http.StatusBadRequest, errors.New("ref and label are required"))
+		return
+	}
+
+	l := &domain.Label{
+		WalletID:  walletID,
+		Type:      req.Type,
+		Ref:       req.Ref,
+		Label:     req.Label,
+		Origin:    req.Origin,
+		Spendable: req.Spendable,
+	}
+
+	dbTx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer dbTx.Rollback()
+
+	if err := h.labels.UpsertWithTx(r.Context(), dbTx, l); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := dbTx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, l)
+}
+
+func (h *WalletHandler) ExportLabels(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "walletID")
+	labels, err := h.labels.ListByWallet(r.Context(), walletID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-jsonlines")
+	w.Header().Set("Content-Disposition", `attachment; filename="labels.jsonl"`)
+	w.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(w)
+	for _, lbl := range labels {
+		obj := map[string]any{
+			"type":  lbl.Type,
+			"ref":   lbl.Ref,
+			"label": lbl.Label,
+		}
+		if lbl.Origin != "" {
+			obj["origin"] = lbl.Origin
+		}
+		if lbl.Spendable != nil {
+			obj["spendable"] = *lbl.Spendable
+		}
+		_ = enc.Encode(obj)
+	}
 }
 
 func (h *WalletHandler) PatchTransaction(w http.ResponseWriter, r *http.Request) {

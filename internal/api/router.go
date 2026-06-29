@@ -38,7 +38,8 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 
 		// Labels
 		r.Get("/wallets/{walletID}/labels", wh.ListLabels)
-		r.Post("/wallets/{walletID}/labels", notImplemented)
+		r.Post("/wallets/{walletID}/labels", wh.CreateLabel)
+		r.Get("/wallets/{walletID}/labels/export", wh.ExportLabels)
 
 		// Ledger (Phase 2)
 		r.Get("/wallets/{walletID}/ledger", lh.ListLedger)
