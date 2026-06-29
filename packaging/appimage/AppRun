@@ -1,0 +1,5 @@
+#!/bin/bash
+HERE="$(dirname "$(readlink -f "$0")")"
+export DB_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/abacus/abacus.db"
+mkdir -p "$(dirname "$DB_PATH")"
+exec "$HERE/usr/bin/abacus" "$@"

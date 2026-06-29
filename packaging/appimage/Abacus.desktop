@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Abacus
+Exec=abacus
+Icon=abacus
+Type=Application
+Categories=Finance;
+Comment=Self-hosted Bitcoin Accounting Engine
