@@ -4,8 +4,10 @@ info:
   version: 0.1.0
   description: |
     Self-hosted Bitcoin accounting engine.
-    Import wallet data from Sparrow or Nunchuk, build an immutable ledger,
-    and run FIFO/Average Cost accounting.
+    Import wallet data from Sparrow, Nunchuk, Coldcard, Specter Desktop,
+    Electrum, or any device exporting a standard output descriptor.
+    Build an immutable ledger and run FIFO/Average Cost accounting.
+    Export reports as CSV, PDF, or Excel.
   license:
     name: MIT
 
@@ -119,10 +121,16 @@ paths:
       - $ref: "#/components/parameters/WalletID"
     post:
       tags: [import]
-      summary: Import wallet data (Sparrow, Nunchuk, BSMS, BIP329)
+      summary: Import wallet data (auto-detected format)
       description: |
         Upload any supported export file. Abacus auto-detects the format.
-        Supported: Sparrow JSON/CSV, Nunchuk JSON, BSMS (.bsms), BIP329 (.jsonl)
+        Supported formats:
+        - Sparrow: JSON, CSV, BIP329 (.jsonl)
+        - Nunchuk: JSON, BSMS (.bsms), BIP329 (.jsonl)
+        - Coldcard: coldcard-export.json (descriptor + fingerprint, no tx history)
+        - Specter Desktop: JSON descriptor export
+        - Electrum: JSON wallet export (unencrypted only)
+        - Generic: any JSON with a "descriptor" or "desc" field (Jade, Passport, SeedSigner, etc.)
       requestBody:
         required: true
         content:
@@ -280,8 +288,8 @@ paths:
                   type: string
                   default: EUR
       responses:
-        "202":
-          description: Calculation started
+        "200":
+          description: Calculation complete; returns accounting summary
 
   /wallets/{walletID}/accounting/summary:
     parameters:
@@ -370,36 +378,78 @@ paths:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [reports]
-      summary: Balance sheet report
+      summary: Balance sheet report (unspent UTXOs + cost basis)
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, pdf, xlsx]
+            default: csv
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: EUR
       responses:
         "200":
-          description: Balance sheet
+          description: Report file download
 
   /wallets/{walletID}/reports/pnl:
     parameters:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [reports]
-      summary: Profit and loss report
+      summary: Profit and loss report (disposed UTXOs)
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, pdf, xlsx]
+            default: csv
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: EUR
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
       responses:
         "200":
-          description: P&L
+          description: Report file download
 
   /wallets/{walletID}/reports/transactions:
     parameters:
       - $ref: "#/components/parameters/WalletID"
-      - name: format
-        in: query
-        schema:
-          type: string
-          enum: [json, csv, pdf, xlsx]
-          default: json
     get:
       tags: [reports]
       summary: Transaction report export
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, pdf, xlsx]
+            default: csv
+        - name: currency
+          in: query
+          schema:
+            type: string
+            default: EUR
       responses:
         "200":
-          description: Report file
+          description: Report file download (Content-Disposition attachment)
 
 components:
   parameters:
@@ -463,7 +513,7 @@ components:
           enum: [mainnet, testnet, signet]
         source:
           type: string
-          enum: [sparrow, nunchuk, bsms, manual]
+          enum: [sparrow, nunchuk, coldcard, specter, electrum, descriptor, manual]
         created_at:
           type: string
           format: date-time
