@@ -88,7 +88,9 @@ func main() {
 	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
 	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo)
 	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler)
+	journalRepo := repository.NewJournalRepo(db)
+	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)
