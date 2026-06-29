@@ -76,14 +76,17 @@ func RunAvgCost(
 			cb.ProceedsFiat = &proceedsFiat
 			cb.GainFiat = &gainFiat
 
-			// Remove disposed sats from pool.
-			poolSats -= u.Sats
-			poolFiat -= avgCostFiat
+			// Remove disposed sats proportionally to avoid integer-truncation drift.
+			// poolSats still holds pre-disposal total here.
+			remaining := poolSats - u.Sats
+			if remaining > 0 {
+				poolFiat = poolFiat * remaining / poolSats
+			} else {
+				poolFiat = 0
+			}
+			poolSats = remaining
 			if poolSats < 0 {
 				poolSats = 0
-			}
-			if poolFiat < 0 {
-				poolFiat = 0
 			}
 		}
 

@@ -113,9 +113,6 @@ func (h *ReportHandler) Transactions(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("transactions-%s.%s", time.Now().Format("2006-01-02"), ext)
 	w.Header().Set("Content-Type", mime)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
-	w.Header().Del("Content-Type") // set after to avoid double-write
-	w.Header().Set("Content-Type", mime)
-	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(buf.Bytes())
 }
 
