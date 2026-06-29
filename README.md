@@ -97,9 +97,10 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | 1 — Sparrow + Nunchuk importer | ✅ |
 | 2 — Ledger Engine | ✅ |
 | 3 — Accounting Engine (FIFO / Avg Cost) | ✅ |
-| 4 — Dashboard (React / Vite) | 🔜 |
-| 5 — Reports (PDF / Excel / CSV) | 🔜 |
-| 6 — Plugin system + additional wallets | 🔜 |
+| 4 — Dashboard (React / Vite) | ✅ |
+| 5 — Reports (PDF / Excel / CSV) | ✅ |
+| 6 — Extended wallet importers (Coldcard, Specter, Electrum, generic) | ✅ |
+| 7 — Blockchain sync (Esplora / Electrum / Bitcoin Core) | 🔜 |
 
 ## License
 

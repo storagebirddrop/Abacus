@@ -23,6 +23,10 @@ internal/importer/          plugin importers
   common/                   shared parsers: bsms.go, bip329.go
   sparrow/                  Sparrow wallet importer
   nunchuk/                  Nunchuk wallet importer
+  coldcard/                 Coldcard hardware wallet (descriptor export)
+  specter/                  Specter Desktop (descriptor export)
+  electrum/                 Electrum wallet (transaction history)
+  descriptor/               Generic descriptor fallback (Jade, Passport, SeedSigner, etc.)
 internal/normalizer/        wallet-agnostic normalization
 internal/ledger/            ledger engine (Build: tx → entries + UTXOs)
 internal/accounting/        FIFO / Average Cost calculations
@@ -100,4 +104,8 @@ Live endpoints (Phases 1–3):
 - `GET /api/v1/prices` — price snapshots (currency + date range)
 - `POST /api/v1/prices` — manual price entry
 
-Not yet implemented (return 501): ledger entries, UTXOs, reports.
+- `GET /api/v1/wallets/{id}/reports/transactions` — transaction report (CSV/PDF/XLSX)
+- `GET /api/v1/wallets/{id}/reports/pnl` — P&L report (CSV/PDF/XLSX)
+- `GET /api/v1/wallets/{id}/reports/balance-sheet` — balance sheet (CSV/PDF/XLSX)
+
+Not yet implemented (return 501): ledger entries, UTXOs.
