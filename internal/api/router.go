@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string, wh *WalletHandler) http.Handler {
+func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -45,16 +45,16 @@ func NewRouter(version string, wh *WalletHandler) http.Handler {
 		r.Get("/wallets/{walletID}/ledger/{entryID}", notImplemented)
 
 		// Accounting (Phase 3)
-		r.Post("/wallets/{walletID}/accounting/run", notImplemented)
-		r.Get("/wallets/{walletID}/accounting/summary", notImplemented)
-		r.Get("/wallets/{walletID}/accounting/cost-basis", notImplemented)
+		r.Post("/wallets/{walletID}/accounting/run", ah.RunAccounting)
+		r.Get("/wallets/{walletID}/accounting/summary", ah.GetSummary)
+		r.Get("/wallets/{walletID}/accounting/cost-basis", ah.ListCostBasis)
 
 		// UTXOs (Phase 2)
 		r.Get("/wallets/{walletID}/utxos", notImplemented)
 
 		// Prices (Phase 3)
-		r.Get("/prices", notImplemented)
-		r.Post("/prices", notImplemented)
+		r.Get("/prices", ah.ListPrices)
+		r.Post("/prices", ah.CreatePrice)
 
 		// Reports (Phase 4)
 		r.Get("/wallets/{walletID}/reports/balance-sheet", notImplemented)
