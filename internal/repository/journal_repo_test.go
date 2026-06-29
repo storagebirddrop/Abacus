@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -19,7 +20,7 @@ func openTestDB(t *testing.T) *sql.DB {
 	}
 	_, file, _, _ := runtime.Caller(0)
 	migrationsDir := filepath.Join(filepath.Dir(file), "..", "..", "migrations")
-	if err := Migrate(db, migrationsDir); err != nil {
+	if err := Migrate(db, os.DirFS(migrationsDir)); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db

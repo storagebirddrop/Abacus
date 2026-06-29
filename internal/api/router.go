@@ -2,21 +2,22 @@ package api
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler, sth *SettingsHandler) http.Handler {
+func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler, sth *SettingsHandler, frontendFS fs.FS) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
-	r.Use(jsonContentType)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(jsonContentType)
 		r.Get("/health", handleHealth(version))
 		r.Get("/version", handleVersion(version))
 
@@ -76,6 +77,12 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		r.Get("/portfolio/summary", ph.GetPortfolioSummary)
 	})
 
+	// Serve frontend SPA — all non-API routes fall through to index.html
+	if frontendFS != nil {
+		r.NotFound(spaHandler(frontendFS))
+		r.Get("/*", spaHandler(frontendFS))
+	}
+
 	return r
 }
 
@@ -112,4 +119,27 @@ func jsonContentType(next http.Handler) http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// spaHandler serves static files from frontendFS; falls back to index.html for
+// unknown paths so React Router handles client-side navigation.
+func spaHandler(frontendFS fs.FS) http.HandlerFunc {
+	fileServer := http.FileServer(http.FS(frontendFS))
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if len(path) > 0 && path[0] == '/' {
+			path = path[1:]
+		}
+		if path == "" {
+			path = "index.html"
+		}
+		if _, err := frontendFS.Open(path); err != nil {
+			// File not found — serve index.html for SPA routing
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/"
+			fileServer.ServeHTTP(w, r2)
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	}
 }

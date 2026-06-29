@@ -22,7 +22,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 - Builds an **immutable ledger** from your transaction history
 - Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
-- Syncs transaction history live via **Esplora, Electrum, or Bitcoin Core**
+- Syncs transaction history live via **Esplora, Electrum, or Bitcoin Core** — opt-in, configured via the Settings page
 - Generates **tax reports** for the Netherlands (Box 3), Germany (§23 EStG), United Kingdom (HMRC CGT / Section 104), and United States (IRS Form 8949)
 - Generates **generic reports** (balance sheet, P&L, CSV/PDF/Excel)
 - Provides a **REST API** for all accounting data
@@ -36,11 +36,19 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 
 ## Quick Start
 
+**Docker (recommended)**
 ```bash
 git clone https://github.com/storagebirddrop/abacus
 cd abacus
 cp .env.example .env
 docker compose up --build
+```
+
+**AppImage (Linux, no install)**
+```bash
+# Download the latest release from GitHub Releases
+chmod +x Abacus-*-x86_64.AppImage
+./Abacus-*-x86_64.AppImage
 ```
 
 Open http://localhost:8080
@@ -88,15 +96,21 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 ## Development
 
 ```bash
+# Build frontend first (required for go:embed)
+make frontend
+
 # Backend
 go build ./...
 go test ./...
 
-# Frontend
-cd web && npm install && npm run dev
+# Frontend dev server (proxies /api → :8080)
+cd web && npm run dev
 
 # Full stack
 docker compose up --build
+
+# AppImage (requires appimagetool)
+make appimage
 ```
 
 API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
@@ -115,8 +129,9 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Phase 7 — Blockchain sync (Esplora / Electrum / Bitcoin Core) | ✅ |
 | Backlog 1 — Ledger & UTXO endpoints | ✅ |
 | Backlog 5 — Jurisdiction tax reports (NL / DE / UK / US) + LIFO / HIFO / Section 104 | ✅ |
-| Backlog 6 — BIP329 label export (`POST /labels`) | 🔜 |
-| Backlog 7 — Linux AppImage packaging | 🔜 |
+| Backlog 6 — BIP329 label export + `POST /labels` | ✅ |
+| Backlog 7 — Linux AppImage packaging + GitHub Release CI | ✅ |
+| Settings — UI-driven blockchain sync config (opt-in, runtime-configurable) | ✅ |
 
 ## License
 
