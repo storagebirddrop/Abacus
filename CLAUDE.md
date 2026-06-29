@@ -19,14 +19,29 @@ cmd/abacus/main.go          entrypoint — registers importers, starts HTTP
 internal/domain/            core types (no external deps)
 internal/importer/          plugin importers
   importer.go               WalletImporter interface + registry
+  service.go                import orchestration + ledger wiring
   common/                   shared parsers: bsms.go, bip329.go
   sparrow/                  Sparrow wallet importer
   nunchuk/                  Nunchuk wallet importer
 internal/normalizer/        wallet-agnostic normalization
-internal/ledger/            ledger engine
+internal/ledger/            ledger engine (Build: tx → entries + UTXOs)
 internal/accounting/        FIFO / Average Cost calculations
+  accounting.go             Service, PriceLookup, AccountingSummary
+  fifo.go                   RunFIFO pure function
+  avgcost.go                RunAvgCost pure function
+  accounting_test.go        unit tests (no DB)
 internal/repository/        SQLite data access
+  wallet_repo.go
+  transaction_repo.go
+  ledger_repo.go
+  utxo_repo.go
+  cost_basis_repo.go
+  price_snapshot_repo.go
+  import_job_repo.go
 internal/api/               HTTP handlers and router
+  router.go                 all routes registered here
+  wallets.go                wallet + import + transaction handlers
+  accounting.go             accounting + price handlers
 internal/config/            config from env vars
 migrations/                 numbered SQL migration files
 docs/architecture.md        layer diagram and principles
@@ -69,4 +84,20 @@ Run migrations via `golang-migrate` on startup.
 
 All routes registered in `internal/api/router.go`.
 Spec: `docs/api/swagger.yaml`.
-Unimplemented routes return `501 Not Implemented`.
+
+Live endpoints (Phases 1–3):
+- `GET/POST /api/v1/wallets` — list, create
+- `GET/DELETE /api/v1/wallets/{id}` — get, delete
+- `POST /api/v1/wallets/{id}/import` — upload Sparrow/Nunchuk/BSMS/BIP329
+- `GET /api/v1/wallets/{id}/import-jobs` — list import history
+- `GET /api/v1/import-jobs/{id}` — job status
+- `GET /api/v1/wallets/{id}/transactions` — paginated tx list
+- `GET /api/v1/wallets/{id}/transactions/{txid}` — single tx
+- `GET /api/v1/wallets/{id}/labels` — BIP329 labels
+- `POST /api/v1/wallets/{id}/accounting/run` — run cost basis (FIFO or AvgCost)
+- `GET /api/v1/wallets/{id}/accounting/summary` — portfolio summary
+- `GET /api/v1/wallets/{id}/accounting/cost-basis` — per-UTXO records
+- `GET /api/v1/prices` — price snapshots (currency + date range)
+- `POST /api/v1/prices` — manual price entry
+
+Not yet implemented (return 501): ledger entries, UTXOs, reports.

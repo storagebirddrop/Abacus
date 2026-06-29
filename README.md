@@ -94,10 +94,10 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Phase | Status |
 |---|---|
 | 0 — Architecture & Foundation | ✅ |
-| 1 — Sparrow + Nunchuk importer | 🔜 |
-| 2 — Ledger Engine | 🔜 |
-| 3 — Accounting Engine (FIFO / Avg Cost) | 🔜 |
-| 4 — REST API + Dashboard | 🔜 |
+| 1 — Sparrow + Nunchuk importer | ✅ |
+| 2 — Ledger Engine | ✅ |
+| 3 — Accounting Engine (FIFO / Avg Cost) | ✅ |
+| 4 — Dashboard (React / Vite) | 🔜 |
 | 5 — Reports (PDF / Excel / CSV) | 🔜 |
 | 6 — Plugin system + additional wallets | 🔜 |
 

@@ -36,6 +36,10 @@ type UTXORepo interface {
 	MarkSpentWithTx(ctx context.Context, tx *sql.Tx, prevTxid string, prevVout int, spentByTxid string) error
 }
 
+type WalletRepo interface {
+	UpdateDescriptor(ctx context.Context, id, descriptor, fingerprint string) error
+}
+
 type JobRepo interface {
 	CreateWithTx(ctx context.Context, tx *sql.Tx, job *domain.ImportJob) error
 	UpdateWithTx(ctx context.Context, tx *sql.Tx, job *domain.ImportJob) error
@@ -44,6 +48,7 @@ type JobRepo interface {
 
 type Service struct {
 	db         Storer
+	walletRepo WalletRepo
 	txRepo     TxRepo
 	lblRepo    LabelRepo
 	ledgerRepo LedgerRepo
@@ -51,9 +56,10 @@ type Service struct {
 	jobRepo    JobRepo
 }
 
-func NewService(db Storer, txRepo TxRepo, lblRepo LabelRepo, ledgerRepo LedgerRepo, utxoRepo UTXORepo, jobRepo JobRepo) *Service {
+func NewService(db Storer, walletRepo WalletRepo, txRepo TxRepo, lblRepo LabelRepo, ledgerRepo LedgerRepo, utxoRepo UTXORepo, jobRepo JobRepo) *Service {
 	return &Service{
 		db:         db,
+		walletRepo: walletRepo,
 		txRepo:     txRepo,
 		lblRepo:    lblRepo,
 		ledgerRepo: ledgerRepo,
@@ -190,6 +196,12 @@ func (s *Service) Run(ctx context.Context, walletID, filename string, data []byt
 
 	if err := dbTx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
+	}
+
+	// If the importer provided wallet setup data, enrich the wallet record.
+	// UpdateDescriptor is a no-op if the wallet already has a descriptor.
+	if result.WalletSetup != nil && result.WalletSetup.Descriptor != "" {
+		_ = s.walletRepo.UpdateDescriptor(ctx, walletID, result.WalletSetup.Descriptor, result.WalletSetup.Fingerprint)
 	}
 
 	return job, nil

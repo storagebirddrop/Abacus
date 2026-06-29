@@ -24,7 +24,16 @@ type WalletImporter interface {
 	Import(ctx context.Context, walletID string, r io.Reader) (*ImportResult, error)
 }
 
+// WalletSetup carries optional wallet metadata from setup-only importers
+// (hardware signing devices that export descriptor + xpub, not transaction history).
+type WalletSetup struct {
+	Descriptor  string
+	Fingerprint string
+	Name        string
+}
+
 type ImportResult struct {
+	WalletSetup  *WalletSetup
 	Transactions []domain.Transaction
 	Inputs       []domain.TransactionInput
 	Outputs      []domain.TransactionOutput
