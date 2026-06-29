@@ -106,6 +106,12 @@ func (s *Service) Run(ctx context.Context, walletID string, method domain.CostBa
 		records = RunFIFO(walletID, utxos, spendTimes, priceFn, currency)
 	case domain.MethodAvgCost:
 		records = RunAvgCost(walletID, utxos, spendTimes, priceFn, currency)
+	case domain.MethodLIFO:
+		records = RunLIFO(walletID, utxos, spendTimes, priceFn, currency)
+	case domain.MethodHIFO:
+		records = RunHIFO(walletID, utxos, spendTimes, priceFn, currency)
+	case domain.MethodSpecificID:
+		records = RunSpecificID(walletID, utxos, spendTimes, priceFn, currency, nil)
 	default:
 		return fmt.Errorf("unknown method: %s", method)
 	}

@@ -5,8 +5,11 @@ import "time"
 type CostBasisMethod string
 
 const (
-	MethodFIFO    CostBasisMethod = "fifo"
-	MethodAvgCost CostBasisMethod = "avgcost"
+	MethodFIFO       CostBasisMethod = "fifo"
+	MethodAvgCost    CostBasisMethod = "avgcost"
+	MethodLIFO       CostBasisMethod = "lifo"
+	MethodHIFO       CostBasisMethod = "hifo"
+	MethodSpecificID CostBasisMethod = "specificid"
 )
 
 type CostBasisRecord struct {
