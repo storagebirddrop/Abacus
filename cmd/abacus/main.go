@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
-	"path/filepath"
+	"os"
 
+	abacus "github.com/storagebirddrop/abacus"
 	"github.com/storagebirddrop/abacus/internal/accounting"
 	"github.com/storagebirddrop/abacus/internal/api"
 	"github.com/storagebirddrop/abacus/internal/config"
@@ -47,11 +49,12 @@ func main() {
 	}
 	defer db.Close()
 
-	migrationsPath, err := filepath.Abs(cfg.MigrationsPath)
+	// Migrations: use embedded FS (works in both binary and AppImage).
+	migrationsFS, err := fs.Sub(abacus.Migrations, "migrations")
 	if err != nil {
-		log.Fatalf("migrations path: %v", err)
+		log.Fatalf("migrations fs: %v", err)
 	}
-	if err := repository.Migrate(db, migrationsPath); err != nil {
+	if err := repository.Migrate(db, migrationsFS); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
 	log.Println("Database migrations applied")
@@ -108,6 +111,22 @@ func main() {
 	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
 	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, backendFactory)
 
+	// Frontend FS: use FRONTEND_DIR env var for dev (disk); otherwise embedded.
+	var frontendFS fs.FS
+	if dir := cfg.FrontendDir; dir != "" {
+		if _, err := os.Stat(dir); err == nil {
+			frontendFS = os.DirFS(dir)
+			log.Printf("Serving frontend from disk: %s", dir)
+		}
+	}
+	if frontendFS == nil {
+		frontendFS, err = fs.Sub(abacus.Frontend, "web/dist")
+		if err != nil {
+			log.Fatalf("frontend fs: %v", err)
+		}
+		log.Println("Serving frontend from embedded FS")
+	}
+
 	// HTTP handlers
 	journalRepo := repository.NewJournalRepo(db)
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, ledgerRepo, journalRepo, db, jobRepo, labelRepo, importSvc)
@@ -117,7 +136,7 @@ func main() {
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
 	portfolioHandler := api.NewPortfolioHandler(walletRepo, cbRepo, utxoRepo)
 	settingsHandler := api.NewSettingsHandler(settingsRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)
