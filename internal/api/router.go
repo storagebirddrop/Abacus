@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler) http.Handler {
+func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler, sth *SettingsHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -67,6 +67,10 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		r.Post("/wallets/{walletID}/sync", sh.StartSync)
 		r.Get("/wallets/{walletID}/sync-jobs", sh.ListSyncJobs)
 		r.Get("/sync-jobs/{jobID}", sh.GetSyncJob)
+
+		// Settings
+		r.Get("/settings", sth.GetSettings)
+		r.Patch("/settings", sth.UpdateSettings)
 
 		// Portfolio (cross-wallet)
 		r.Get("/portfolio/summary", ph.GetPortfolioSummary)

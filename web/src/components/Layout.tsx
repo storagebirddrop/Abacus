@@ -4,6 +4,7 @@ import { cn } from '../lib/utils'
 const navItems = [
   { to: '/wallets', label: 'Wallets' },
   { to: '/prices', label: 'Prices' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export default function Layout() {
