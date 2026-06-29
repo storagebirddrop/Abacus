@@ -60,6 +60,7 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		r.Get("/wallets/{walletID}/reports/balance-sheet", rh.BalanceSheet)
 		r.Get("/wallets/{walletID}/reports/pnl", rh.PnL)
 		r.Get("/wallets/{walletID}/reports/transactions", rh.Transactions)
+			r.Get("/wallets/{walletID}/reports/tax", rh.TaxReport)
 
 		// Blockchain sync (Phase 7)
 		r.Post("/wallets/{walletID}/sync", sh.StartSync)
