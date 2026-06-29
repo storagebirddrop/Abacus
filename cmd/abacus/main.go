@@ -84,11 +84,11 @@ func main() {
 	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, blockchainBackend)
 
 	// HTTP handlers
-	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
+	journalRepo := repository.NewJournalRepo(db)
+	walletHandler := api.NewWalletHandler(walletRepo, txRepo, ledgerRepo, journalRepo, db, jobRepo, labelRepo, importSvc)
 	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
 	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo)
 	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo)
-	journalRepo := repository.NewJournalRepo(db)
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
 	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler)
 

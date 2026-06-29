@@ -34,7 +34,7 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		// Transactions
 		r.Get("/wallets/{walletID}/transactions", wh.ListTransactions)
 		r.Get("/wallets/{walletID}/transactions/{txid}", wh.GetTransaction)
-		r.Patch("/wallets/{walletID}/transactions/{txid}", notImplemented)
+		r.Patch("/wallets/{walletID}/transactions/{txid}", wh.PatchTransaction)
 
 		// Labels
 		r.Get("/wallets/{walletID}/labels", wh.ListLabels)

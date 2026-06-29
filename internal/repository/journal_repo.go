@@ -16,6 +16,15 @@ func NewJournalRepo(db *sql.DB) *JournalRepo {
 	return &JournalRepo{db: db}
 }
 
+// Insert writes a single journal entry inside an existing DB transaction.
+func (r *JournalRepo) Insert(ctx context.Context, tx *sql.Tx, e *domain.JournalEntry) error {
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO journal_entries (id, ledger_entry_id, field_changed, old_value, new_value, reason, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.LedgerEntryID, e.FieldChanged, e.OldValue, e.NewValue, e.Reason, e.CreatedAt.Unix())
+	return err
+}
+
 // ListByLedgerEntry returns all journal entries for a ledger entry, ordered by created_at ASC.
 func (r *JournalRepo) ListByLedgerEntry(ctx context.Context, ledgerEntryID string) ([]*domain.JournalEntry, error) {
 	rows, err := r.db.QueryContext(ctx,
