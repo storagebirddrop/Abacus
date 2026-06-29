@@ -55,7 +55,8 @@ func main() {
 	// HTTP handlers
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, jobRepo, labelRepo, importSvc)
 	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler)
+	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo)
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Printf("Abacus %s starting on %s", cfg.Version, addr)
