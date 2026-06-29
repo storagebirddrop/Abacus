@@ -68,3 +68,19 @@ Each as a new report format alongside the existing CSV/PDF/XLSX generators.
 - Export labels back as BIP329 `.jsonl`
 
 ---
+
+## 7. Linux AppImage packaging
+
+Distribute Abacus as a single-file portable Linux executable:
+
+- `packaging/appimage/Abacus.desktop` — XDG desktop entry
+- `packaging/appimage/icon.png` — 256×256 app icon
+- `Makefile` target `appimage`:
+  1. Build frontend (`npm run build`)
+  2. Build Go binary inside an Ubuntu 20.04 Docker container (old glibc = broad distro compatibility; CGO required for go-sqlite3)
+  3. Assemble AppDir: `Abacus.AppDir/usr/bin/abacus`, `Abacus.AppDir/usr/share/abacus/web/dist/`, `.desktop`, icon, `AppRun` symlink
+  4. Run `appimagetool Abacus.AppDir Abacus-x86_64.AppImage`
+- Output: `dist/Abacus-x86_64.AppImage` — users `chmod +x` and run; no install needed
+- The binary serves the bundled `web/dist/` via `FRONTEND_DIR` (already supported by config)
+
+---
