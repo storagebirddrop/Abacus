@@ -132,6 +132,8 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Backlog 6 — BIP329 label export + `POST /labels` | ✅ |
 | Backlog 7 — Linux AppImage packaging + GitHub Release CI | ✅ |
 | Settings — UI-driven blockchain sync config (opt-in, runtime-configurable) | ✅ |
+| Manual — push `v1.0.0` tag to trigger AppImage release (requires local git or GitHub UI; CI token lacks `Contents: write`) | ⏳ |
+| Manual — delete 13 stale remote branches (run `git push origin --delete <branches>` locally; no branch-delete API available in CI) | ⏳ |
 
 ## License
 
