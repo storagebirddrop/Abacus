@@ -86,7 +86,7 @@ func main() {
 	// HTTP handlers
 	journalRepo := repository.NewJournalRepo(db)
 	walletHandler := api.NewWalletHandler(walletRepo, txRepo, ledgerRepo, journalRepo, db, jobRepo, labelRepo, importSvc)
-	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo)
+	accountingHandler := api.NewAccountingHandler(accountingSvc, priceRepo, cbRepo, walletRepo)
 	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo, priceRepo)
 	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo)
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)

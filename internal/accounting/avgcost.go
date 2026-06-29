@@ -54,12 +54,12 @@ func RunAvgCost(
 		}
 
 		if u.Spent && u.SpentTxid != "" {
-			// Average cost per sat at disposal time.
-			var avgCostPerSat int64
+			// Average cost: multiply before dividing to avoid per-sat integer truncation.
+			// poolFiat/poolSats would be 0 at BTC scale (cents/sat << 1).
+			var avgCostFiat int64
 			if poolSats > 0 {
-				avgCostPerSat = poolFiat / poolSats // integer division in cents/sat
+				avgCostFiat = poolFiat * u.Sats / poolSats
 			}
-			avgCostFiat := avgCostPerSat * u.Sats
 
 			spendTime, ok := spendTimes[u.SpentTxid]
 			if !ok {
