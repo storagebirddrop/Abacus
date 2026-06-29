@@ -14,16 +14,19 @@
 ---
 
 Abacus is an open-source, self-hosted Bitcoin accounting engine.
-Import your wallet data from Sparrow or Nunchuk and get an immutable financial ledger with FIFO and Average Cost accounting.
+Import your wallet data and get an immutable financial ledger with multi-method cost basis accounting, blockchain sync, and jurisdiction-specific tax reports.
 
 ## What Abacus does
 
-- Imports wallet data from **Sparrow** and **Nunchuk** (descriptor, BSMS, BIP329 labels)
+- Imports wallet data from **Sparrow**, **Nunchuk**, **Coldcard**, **Specter Desktop**, **Electrum**, and any wallet that exports a descriptor or BIP329 labels
 - Builds an **immutable ledger** from your transaction history
-- Runs **FIFO and Average Cost** cost basis calculations
+- Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
+- Syncs transaction history live via **Esplora, Electrum, or Bitcoin Core**
+- Generates **tax reports** for the Netherlands (Box 3), Germany (§23 EStG), United Kingdom (HMRC CGT / Section 104), and United States (IRS Form 8949)
+- Generates **generic reports** (balance sheet, P&L, CSV/PDF/Excel)
 - Provides a **REST API** for all accounting data
-- Generates **reports** (balance sheet, P&L, CSV/PDF/Excel)
+- Serves a **React dashboard** at `localhost:8080`
 
 ## What Abacus does NOT do
 
@@ -44,27 +47,36 @@ Open http://localhost:8080
 
 ## Import your wallet
 
-1. Export your wallet data from Sparrow or Nunchuk
+1. Export your wallet data from your wallet app
 2. Open Abacus → Wallets → Import
 3. Upload the file — Abacus detects the format automatically
 
 **Supported formats:**
-- Sparrow JSON wallet export
-- Sparrow transaction CSV
+- Sparrow JSON wallet export, transaction CSV
 - Nunchuk JSON export
+- Coldcard `coldcard-export.json`
+- Specter Desktop JSON descriptor export
+- Electrum JSON wallet export (unencrypted)
 - BSMS files (BIP-129, multisig descriptor)
-- BIP329 label files (.jsonl)
+- BIP329 label files (`.jsonl`)
+- Any JSON with a `descriptor` or `desc` field (Jade, Passport, SeedSigner, etc.)
 
 ## Architecture
 
 ```
-Importer (Sparrow / Nunchuk / BSMS / BIP329)
+Blockchain (Esplora / Electrum / Bitcoin Core)
+    ↓
+Sync Layer (address derivation → tx fetch → persist)
+    ↓
+Importer (Sparrow / Nunchuk / Coldcard / Specter / Electrum / BIP329 / BSMS)
     ↓
 Normalization (wallet-agnostic)
     ↓
 Ledger Engine (immutable)
     ↓
-Accounting Engine (FIFO / Average Cost)
+Accounting Engine (FIFO / AvgCost / LIFO / HIFO / SpecificID / Section 104)
+    ↓
+Report Engine (CSV / PDF / Excel / Tax Reports)
     ↓
 REST API
     ↓
@@ -91,16 +103,20 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 
 ## Roadmap
 
-| Phase | Status |
+| Item | Status |
 |---|---|
-| 0 — Architecture & Foundation | ✅ |
-| 1 — Sparrow + Nunchuk importer | ✅ |
-| 2 — Ledger Engine | ✅ |
-| 3 — Accounting Engine (FIFO / Avg Cost) | ✅ |
-| 4 — Dashboard (React / Vite) | ✅ |
-| 5 — Reports (PDF / Excel / CSV) | ✅ |
-| 6 — Extended wallet importers (Coldcard, Specter, Electrum, generic) | ✅ |
-| 7 — Blockchain sync (Esplora / Electrum / Bitcoin Core) | 🔜 |
+| Phase 0 — Architecture & Foundation | ✅ |
+| Phase 1 — Sparrow + Nunchuk importer | ✅ |
+| Phase 2 — Ledger Engine | ✅ |
+| Phase 3 — Accounting Engine (FIFO / Avg Cost) | ✅ |
+| Phase 4 — Dashboard (React / Vite) | ✅ |
+| Phase 5 — Reports (PDF / Excel / CSV) | ✅ |
+| Phase 6 — Extended wallet importers (Coldcard, Specter, Electrum, generic) | ✅ |
+| Phase 7 — Blockchain sync (Esplora / Electrum / Bitcoin Core) | ✅ |
+| Backlog 1 — Ledger & UTXO endpoints | ✅ |
+| Backlog 5 — Jurisdiction tax reports (NL / DE / UK / US) + LIFO / HIFO / Section 104 | ✅ |
+| Backlog 6 — BIP329 label export (`POST /labels`) | 🔜 |
+| Backlog 7 — Linux AppImage packaging | 🔜 |
 
 ## License
 

@@ -11,9 +11,11 @@ Wallet ──┬── Address (many)
          │        └───────── CostBasisRecord (one, after accounting run)
          ├── Label (many, BIP329)
          ├── Counterparty (many)
-         └── ImportJob (many)
+         ├── ImportJob (many)
+         └── SyncJob (many)
 
 PriceSnapshot (global, not wallet-scoped)
+SyncState (one per wallet)
 ```
 
 ## Entities
@@ -29,7 +31,7 @@ The root entity. Represents a Bitcoin wallet defined by its output descriptor.
 | fingerprint | string | Master key fingerprint |
 | type | enum | `singlesig` \| `multisig` |
 | network | enum | `mainnet` \| `testnet` \| `signet` |
-| source | enum | `sparrow` \| `nunchuk` \| `bsms` \| `manual` |
+| source | enum | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `manual` |
 
 ### Transaction
 An immutable record of a confirmed or unconfirmed Bitcoin transaction.
@@ -82,7 +84,7 @@ Result of an accounting run. One record per UTXO acquisition/disposal.
 
 | Field | Type | Description |
 |---|---|---|
-| method | enum | `fifo` \| `avgcost` |
+| method | enum | `fifo` \| `avgcost` \| `lifo` \| `hifo` \| `specificid` \| `section104` |
 | cost_sats | int | Acquisition cost in sats |
 | cost_fiat | int | Acquisition cost in cents |
 | disposed_at | timestamp | Null if still held |
@@ -115,8 +117,33 @@ Tracks the state of a file import operation.
 
 | Field | Type | Description |
 |---|---|---|
-| source | string | `sparrow` \| `nunchuk` \| `bsms` \| `bip329` |
+| source | string | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `bip329` \| `descriptor` |
 | filename | string | Original filename |
 | status | enum | `pending` \| `running` \| `done` \| `failed` |
 | records_imported | int | Count of imported records |
 | error_message | string | Set on failure |
+
+### SyncJob
+Tracks the state of a blockchain sync operation.
+
+| Field | Type | Description |
+|---|---|---|
+| wallet_id | UUID | Reference to Wallet |
+| backend | string | `esplora` \| `electrum` \| `bitcoincore` |
+| status | enum | `pending` \| `running` \| `done` \| `failed` |
+| addresses_scanned | int | Number of addresses queried |
+| tx_found | int | Number of transactions discovered |
+| error_message | string | Set on failure |
+| started_at | unix ts | Job start time |
+| finished_at | unix ts? | Job completion time |
+
+### SyncState
+Persists the last-known sync position for gap-limit resumption.
+
+| Field | Type | Description |
+|---|---|---|
+| wallet_id | UUID | Primary key (one per wallet) |
+| last_synced_at | unix ts | Timestamp of last successful sync |
+| receive_gap_start | int | Next receiving address index to scan |
+| change_gap_start | int | Next change address index to scan |
+| block_height | int | Chain tip at last sync |
