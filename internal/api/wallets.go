@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,19 @@ type txStore interface {
 	GetOutputsByTransactionID(ctx context.Context, txID string) ([]*domain.TransactionOutput, error)
 }
 
+type txLedgerStore interface {
+	ListByTransaction(ctx context.Context, walletID, transactionID string) ([]*domain.LedgerEntry, error)
+	UpdateMetadata(ctx context.Context, tx *sql.Tx, id string, category domain.Category, note, counterpartyID string) error
+}
+
+type txJournalStore interface {
+	Insert(ctx context.Context, tx *sql.Tx, e *domain.JournalEntry) error
+}
+
+type txDBStore interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
 type jobStore interface {
 	GetByID(ctx context.Context, id string) (*domain.ImportJob, error)
 	ListByWallet(ctx context.Context, walletID string) ([]*domain.ImportJob, error)
@@ -46,13 +60,16 @@ type importService interface {
 type WalletHandler struct {
 	wallets   walletStore
 	txs       txStore
+	ledger    txLedgerStore
+	journal   txJournalStore
+	db        txDBStore
 	jobs      jobStore
 	labels    labelStore
 	importSvc importService
 }
 
-func NewWalletHandler(w walletStore, tx txStore, j jobStore, l labelStore, svc importService) *WalletHandler {
-	return &WalletHandler{wallets: w, txs: tx, jobs: j, labels: l, importSvc: svc}
+func NewWalletHandler(w walletStore, tx txStore, ledger txLedgerStore, journal txJournalStore, db txDBStore, j jobStore, l labelStore, svc importService) *WalletHandler {
+	return &WalletHandler{wallets: w, txs: tx, ledger: ledger, journal: journal, db: db, jobs: j, labels: l, importSvc: svc}
 }
 
 func (h *WalletHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -262,6 +279,115 @@ func (h *WalletHandler) ListLabels(w http.ResponseWriter, r *http.Request) {
 		labels = []*domain.Label{}
 	}
 	writeJSON(w, http.StatusOK, labels)
+}
+
+func (h *WalletHandler) PatchTransaction(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "walletID")
+	txid := chi.URLParam(r, "txid")
+
+	tx, err := h.txs.GetByTxid(r.Context(), walletID, txid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusNotFound, errors.New("transaction not found"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	var body struct {
+		Category       *string `json:"category"`
+		Note           *string `json:"note"`
+		CounterpartyID *string `json:"counterparty_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid JSON"))
+		return
+	}
+	if body.Category == nil && body.Note == nil && body.CounterpartyID == nil {
+		writeError(w, http.StatusBadRequest, errors.New("no fields to update"))
+		return
+	}
+
+	entries, err := h.ledger.ListByTransaction(r.Context(), walletID, tx.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	dbTx, err := h.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer dbTx.Rollback() //nolint:errcheck
+
+	now := time.Now().UTC()
+	for _, entry := range entries {
+		newCategory := entry.Category
+		newNote := entry.Note
+		newCounterpartyID := entry.CounterpartyID
+
+		if body.Category != nil && string(entry.Category) != *body.Category {
+			j := &domain.JournalEntry{
+				ID:            uuid.New().String(),
+				LedgerEntryID: entry.ID,
+				FieldChanged:  "category",
+				OldValue:      string(entry.Category),
+				NewValue:      *body.Category,
+				Reason:        "user edit",
+				CreatedAt:     now,
+			}
+			if err := h.journal.Insert(r.Context(), dbTx, j); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			newCategory = domain.Category(*body.Category)
+		}
+		if body.Note != nil && entry.Note != *body.Note {
+			j := &domain.JournalEntry{
+				ID:            uuid.New().String(),
+				LedgerEntryID: entry.ID,
+				FieldChanged:  "note",
+				OldValue:      entry.Note,
+				NewValue:      *body.Note,
+				Reason:        "user edit",
+				CreatedAt:     now,
+			}
+			if err := h.journal.Insert(r.Context(), dbTx, j); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			newNote = *body.Note
+		}
+		if body.CounterpartyID != nil && entry.CounterpartyID != *body.CounterpartyID {
+			j := &domain.JournalEntry{
+				ID:            uuid.New().String(),
+				LedgerEntryID: entry.ID,
+				FieldChanged:  "counterparty_id",
+				OldValue:      entry.CounterpartyID,
+				NewValue:      *body.CounterpartyID,
+				Reason:        "user edit",
+				CreatedAt:     now,
+			}
+			if err := h.journal.Insert(r.Context(), dbTx, j); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			newCounterpartyID = *body.CounterpartyID
+		}
+		if err := h.ledger.UpdateMetadata(r.Context(), dbTx, entry.ID, newCategory, newNote, newCounterpartyID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	if err := dbTx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {

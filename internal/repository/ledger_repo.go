@@ -60,6 +60,38 @@ func (r *LedgerRepo) ListByWallet(ctx context.Context, walletID string, limit, o
 	return entries, total, rows.Err()
 }
 
+// ListByTransaction returns all ledger entries for a specific transaction within a wallet.
+func (r *LedgerRepo) ListByTransaction(ctx context.Context, walletID, transactionID string) ([]*domain.LedgerEntry, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
+		        COALESCE(price_snapshot_id,''), category, COALESCE(counterparty_id,''), note, created_at
+		 FROM ledger_entries WHERE wallet_id=? AND transaction_id=?
+		 ORDER BY created_at ASC`,
+		walletID, transactionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []*domain.LedgerEntry
+	for rows.Next() {
+		e, err := scanLedgerEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+// UpdateMetadata updates the mutable metadata fields (category, note, counterparty_id)
+// on a single ledger entry within an existing DB transaction.
+func (r *LedgerRepo) UpdateMetadata(ctx context.Context, tx *sql.Tx, id string, category domain.Category, note, counterpartyID string) error {
+	_, err := tx.ExecContext(ctx,
+		`UPDATE ledger_entries SET category=?, note=?, counterparty_id=? WHERE id=?`,
+		string(category), note, nullString(counterpartyID), id)
+	return err
+}
+
 func (r *LedgerRepo) GetByID(ctx context.Context, id string) (*domain.LedgerEntry, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
