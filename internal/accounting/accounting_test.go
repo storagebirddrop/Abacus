@@ -189,3 +189,204 @@ func TestSatsToFiat_OneSatAtHighPrice(t *testing.T) {
 		t.Errorf("1 sat at 1M EUR/BTC should cost 1 cent, got %d", got[0].CostFiat)
 	}
 }
+
+// --- LIFO tests ---
+
+func TestLIFO_DisposalMatchesNewest(t *testing.T) {
+	// Two acquisitions: tx1 at t1 (cheap), tx2 at t2 (expensive).
+	// LIFO: disposal should be matched against tx2 (newest).
+	spendTimes := map[string]time.Time{"spend-tx": t3}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),          // unspent, cheap
+		utxo("tx2", 0, 1_000_000, t2, true, "spend-tx"),   // spent
+	}
+	priceByTime := func(currency string, ts time.Time) int64 {
+		if ts.IsZero() {
+			return 0
+		}
+		if !ts.After(t1) {
+			return 2_000_000 // 20 000 EUR/BTC — tx1 acquisition price
+		}
+		if !ts.After(t2) {
+			return 4_000_000 // 40 000 EUR/BTC — tx2 acquisition price (LIFO uses this)
+		}
+		return 5_000_000 // 50 000 EUR/BTC — disposal price
+	}
+	records := accounting.RunLIFO("wallet-1", utxos, spendTimes, priceByTime, "EUR")
+	if len(records) != 2 {
+		t.Fatalf("expected 2 records, got %d", len(records))
+	}
+	// Find the disposal record.
+	var disposal *domain.CostBasisRecord
+	for i := range records {
+		if records[i].DisposedAt != nil {
+			disposal = &records[i]
+		}
+	}
+	if disposal == nil {
+		t.Fatal("no disposal record found")
+	}
+	// Cost should reflect tx2's acquisition price (LIFO: newest = 40 000 cents cost).
+	if disposal.CostFiat != 40_000 {
+		t.Errorf("LIFO disposal CostFiat = %d, want 40000 (newest acquisition)", disposal.CostFiat)
+	}
+	if disposal.ProceedsFiat == nil || *disposal.ProceedsFiat != 50_000 {
+		t.Errorf("ProceedsFiat = %v, want 50000", disposal.ProceedsFiat)
+	}
+	if disposal.GainFiat == nil || *disposal.GainFiat != 10_000 {
+		t.Errorf("GainFiat = %v, want 10000", disposal.GainFiat)
+	}
+}
+
+func TestLIFO_UnspentOnly(t *testing.T) {
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),
+		utxo("tx2", 0, 2_000_000, t2, false, ""),
+	}
+	records := accounting.RunLIFO("wallet-1", utxos, nil, fixedPrice(3_000_000), "EUR")
+	if len(records) != 2 {
+		t.Fatalf("expected 2 records, got %d", len(records))
+	}
+	for _, r := range records {
+		if r.DisposedAt != nil {
+			t.Error("unspent UTXOs should have nil DisposedAt")
+		}
+		if r.Method != domain.MethodLIFO {
+			t.Errorf("method = %q, want lifo", r.Method)
+		}
+	}
+}
+
+// --- HIFO tests ---
+
+func TestHIFO_DisposalMatchesHighestCost(t *testing.T) {
+	// Two unspent acquisitions in pool: cheap one (20 000 EUR) and expensive one (40 000 EUR).
+	// One disposal — HIFO should match expensive acquisition (higher cost = lower gain).
+	spendTimes := map[string]time.Time{"spend-tx": t3}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),         // cheap, unspent
+		utxo("tx2", 0, 1_000_000, t2, false, ""),         // expensive, unspent
+		utxo("tx3", 0, 1_000_000, t2, true, "spend-tx"),  // disposal
+	}
+	priceByTime := func(currency string, ts time.Time) int64 {
+		if ts.IsZero() {
+			return 0
+		}
+		if !ts.After(t1) {
+			return 2_000_000 // 20 000 EUR — cheap
+		}
+		if !ts.After(t2) {
+			return 4_000_000 // 40 000 EUR — expensive
+		}
+		return 5_000_000 // disposal price
+	}
+	records := accounting.RunHIFO("wallet-1", utxos, spendTimes, priceByTime, "EUR")
+	var disposal *domain.CostBasisRecord
+	for i := range records {
+		if records[i].DisposedAt != nil {
+			disposal = &records[i]
+		}
+	}
+	if disposal == nil {
+		t.Fatal("no disposal record found")
+	}
+	// HIFO picks highest cost in pool (40 000 cents).
+	if disposal.CostFiat != 40_000 {
+		t.Errorf("HIFO disposal CostFiat = %d, want 40000", disposal.CostFiat)
+	}
+	if disposal.GainFiat == nil || *disposal.GainFiat != 10_000 {
+		t.Errorf("GainFiat = %v, want 10000", disposal.GainFiat)
+	}
+}
+
+func TestHIFO_Method(t *testing.T) {
+	utxos := []domain.UTXO{utxo("tx1", 0, 1_000_000, t1, false, "")}
+	records := accounting.RunHIFO("wallet-1", utxos, nil, fixedPrice(3_000_000), "EUR")
+	if len(records) != 1 || records[0].Method != domain.MethodHIFO {
+		t.Errorf("method = %q, want hifo", records[0].Method)
+	}
+}
+
+// --- SpecificID tests ---
+
+func TestSpecificID_ExplicitSelection(t *testing.T) {
+	// Two acquisitions, one disposal explicitly mapped to the expensive acquisition.
+	spendTimes := map[string]time.Time{"spend-tx": t3}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),         // cheap, unspent (acquisition)
+		utxo("tx2", 0, 1_000_000, t2, false, ""),         // expensive, unspent (acquisition)
+		utxo("tx3", 0, 1_000_000, t2, true, "spend-tx"),  // disposal
+	}
+	priceByTime := func(currency string, ts time.Time) int64 {
+		if ts.IsZero() {
+			return 0
+		}
+		if !ts.After(t1) {
+			return 2_000_000
+		}
+		if !ts.After(t2) {
+			return 4_000_000
+		}
+		return 5_000_000
+	}
+	// Explicitly select expensive acquisition (tx2:0) for disposal tx3:0.
+	selections := accounting.SpecificIDSelection{"tx3:0": "tx2:0"}
+	records := accounting.RunSpecificID("wallet-1", utxos, spendTimes, priceByTime, "EUR", selections)
+
+	var disposal *domain.CostBasisRecord
+	for i := range records {
+		if records[i].DisposedAt != nil {
+			disposal = &records[i]
+		}
+	}
+	if disposal == nil {
+		t.Fatal("no disposal record found")
+	}
+	if disposal.CostFiat != 40_000 {
+		t.Errorf("SpecificID disposal CostFiat = %d, want 40000 (explicit selection)", disposal.CostFiat)
+	}
+}
+
+func TestSpecificID_FallsBackToFIFO(t *testing.T) {
+	// No selections map — should fall back to FIFO (oldest first).
+	spendTimes := map[string]time.Time{"spend-tx": t3}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),         // oldest, cheapest
+		utxo("tx2", 0, 1_000_000, t2, false, ""),         // newer, expensive
+		utxo("tx3", 0, 1_000_000, t2, true, "spend-tx"),  // disposal
+	}
+	priceByTime := func(currency string, ts time.Time) int64 {
+		if ts.IsZero() {
+			return 0
+		}
+		if !ts.After(t1) {
+			return 2_000_000 // cheap — FIFO picks this
+		}
+		if !ts.After(t2) {
+			return 4_000_000
+		}
+		return 5_000_000
+	}
+	records := accounting.RunSpecificID("wallet-1", utxos, spendTimes, priceByTime, "EUR", nil)
+	var disposal *domain.CostBasisRecord
+	for i := range records {
+		if records[i].DisposedAt != nil {
+			disposal = &records[i]
+		}
+	}
+	if disposal == nil {
+		t.Fatal("no disposal record found")
+	}
+	// FIFO fallback: oldest = tx1 at 20 000 EUR = 20 000 cents.
+	if disposal.CostFiat != 20_000 {
+		t.Errorf("SpecificID FIFO fallback CostFiat = %d, want 20000", disposal.CostFiat)
+	}
+}
+
+func TestSpecificID_Method(t *testing.T) {
+	utxos := []domain.UTXO{utxo("tx1", 0, 1_000_000, t1, false, "")}
+	records := accounting.RunSpecificID("wallet-1", utxos, nil, fixedPrice(3_000_000), "EUR", nil)
+	if len(records) != 1 || records[0].Method != domain.MethodSpecificID {
+		t.Errorf("method = %q, want specificid", records[0].Method)
+	}
+}
