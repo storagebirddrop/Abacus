@@ -143,10 +143,11 @@ func TestAvgCost_TwoAcquisitions(t *testing.T) {
 }
 
 func TestAvgCost_DisposalUsesPoolAverage(t *testing.T) {
-	// Acquire 1M sats at 20 000 EUR (20 000 cents cost).
-	// Acquire 1M sats at 40 000 EUR (40 000 cents cost).
-	// Pool before disposal: 2M sats, 60 000 cents total → avg = 30 cents/1M sats = 0.00003 cents/sat
-	// Dispose second 1M sats: avg cost = 30 000 cents, proceeds = 50 000 cents, gain = 20 000 cents
+	// Acquire 1M sats at 20 000 EUR/BTC → cost = 20 000 cents.
+	// Acquire 1M sats at 40 000 EUR/BTC → cost = 40 000 cents.
+	// Pool before disposal: 2M sats, 60 000 cents total.
+	// Dispose second 1M sats: avg cost = 60 000 * 1M / 2M = 30 000 cents.
+	// Proceeds = 1M sats at 50 000 EUR/BTC = 50 000 cents. Gain = 20 000 cents.
 	spendTimes := map[string]time.Time{"spend-tx": t3}
 	utxos := []domain.UTXO{
 		utxo("tx1", 0, 1_000_000, t1, false, ""),
@@ -167,12 +168,14 @@ func TestAvgCost_DisposalUsesPoolAverage(t *testing.T) {
 		t.Fatalf("expected 2 records, got %d", len(records))
 	}
 	r := records[1] // the spent one
-	// pool: 2M sats, 60 000 cents → avg/sat = 60 000 / 2_000_000 = 0 (integer div)
-	// avg cost for 1M sats = floor(60000/2000000) * 1000000 = 0 * 1000000 = 0
-	// Hmm, integer division: 60000 / 2000000 = 0 cents/sat (truncates)
-	// This is a known integer precision issue at small amounts — proceeds and gain still computed
+	if r.CostFiat != 30_000 {
+		t.Errorf("CostFiat = %d, want 30000 (pool average)", r.CostFiat)
+	}
 	if r.GainFiat == nil {
 		t.Fatal("GainFiat should be set for disposed UTXO")
+	}
+	if *r.GainFiat != 20_000 {
+		t.Errorf("GainFiat = %d, want 20000", *r.GainFiat)
 	}
 	if r.DisposedAt == nil {
 		t.Fatal("DisposedAt should be set for disposed UTXO")
