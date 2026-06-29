@@ -57,6 +57,7 @@ internal/api/               HTTP handlers and router
   reports.go                CSV/PDF/XLSX report handlers + tax report handler
   sync.go                   blockchain sync handlers
   portfolio.go              cross-wallet portfolio summary handler
+  settings.go               GET/PATCH /settings — blockchain sync config
 internal/reports/           report generators
   data.go                   shared data structs (TransactionRow, PnLRow, BalanceRow)
   csv.go                    CSV generators for all three generic reports
@@ -75,6 +76,12 @@ internal/sync/              blockchain sync layer
   bitcoincore/              Bitcoin Core JSON-RPC backend
 internal/config/            config from env vars
 migrations/                 numbered SQL migration files
+embed.go                    go:embed — bundles web/dist + migrations into binary
+packaging/appimage/         AppImage assets (AppRun, .desktop, icon)
+Makefile                    frontend / build / appimage / clean targets
+.github/workflows/
+  ci.yml                    CI: Go build/vet/test + frontend lint/build + Docker
+  release.yml               Release: builds AppImage on v* tag push
 docs/architecture.md        layer diagram and principles
 docs/domain-model.md        all entities described
 docs/api/swagger.yaml       OpenAPI 3.1 spec
@@ -105,17 +112,28 @@ web/                        React + Vite frontend
 ## Commands
 
 ```bash
-go build ./...              build
+go build ./...              build (requires web/dist — run `make frontend` first)
 go vet ./...                lint
 go test ./...               test
 docker compose up --build   full stack
+make frontend               build React frontend into web/dist
+make build                  frontend + go binary in dist/abacus
+make appimage               full AppImage in dist/ (requires appimagetool)
+make clean                  remove dist/ and Abacus.AppDir
 ```
+
+## Binary embedding
+
+`embed.go` at the module root uses `go:embed` to bundle `web/dist` (frontend) and `migrations/` into the compiled binary. This means the released binary and AppImage are fully self-contained — no separate asset directories needed at runtime.
+
+- `web/dist` must exist before `go build` (run `make frontend` or `npm run build` in `web/`)
+- In dev, set `FRONTEND_DIR` to serve assets from disk instead of the embedded copy
 
 ## Database
 
-SQLite at `DB_PATH` (default `./abacus.db`).
+SQLite at `DB_PATH` (default `./abacus.db`). For the AppImage, `DB_PATH` defaults to `~/.local/share/abacus/abacus.db` (XDG).
 Migrations in `migrations/` — files are numbered `001_`, `002_`, etc.
-Run migrations via `golang-migrate` on startup.
+Run migrations via `golang-migrate` on startup (applied from the embedded FS).
 
 ## API
 
@@ -134,7 +152,8 @@ Spec: `docs/api/swagger.yaml`.
 - `GET /api/v1/wallets/{id}/transactions/{txid}` — single tx
 - `PATCH /api/v1/wallets/{id}/transactions/{txid}` — update metadata (category, note)
 - `GET /api/v1/wallets/{id}/labels` — BIP329 labels
-- `POST /api/v1/wallets/{id}/labels` — add label (501 — not yet implemented)
+- `POST /api/v1/wallets/{id}/labels` — add label
+- `GET /api/v1/wallets/{id}/labels/export` — BIP329 JSON-Lines export (`.jsonl`)
 
 ### Ledger & UTXOs
 - `GET /api/v1/wallets/{id}/ledger` — paginated ledger entries
@@ -163,6 +182,10 @@ Spec: `docs/api/swagger.yaml`.
 
 ### Portfolio
 - `GET /api/v1/portfolio/summary` — cross-wallet portfolio summary
+
+### Settings
+- `GET /api/v1/settings` — current sync config with defaults
+- `PATCH /api/v1/settings` — update any subset of settings (no restart needed)
 
 ### System
 - `GET /api/v1/health`
