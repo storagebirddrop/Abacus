@@ -9,7 +9,8 @@ const (
 	MethodAvgCost    CostBasisMethod = "avgcost"
 	MethodLIFO       CostBasisMethod = "lifo"
 	MethodHIFO       CostBasisMethod = "hifo"
-	MethodSpecificID CostBasisMethod = "specificid"
+	MethodSpecificID  CostBasisMethod = "specificid"
+	MethodSection104  CostBasisMethod = "section104"
 )
 
 type CostBasisRecord struct {

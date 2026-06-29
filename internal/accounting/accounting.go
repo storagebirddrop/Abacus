@@ -112,6 +112,8 @@ func (s *Service) Run(ctx context.Context, walletID string, method domain.CostBa
 		records = RunHIFO(walletID, utxos, spendTimes, priceFn, currency)
 	case domain.MethodSpecificID:
 		records = RunSpecificID(walletID, utxos, spendTimes, priceFn, currency, nil)
+	case domain.MethodSection104:
+		records = RunSection104(walletID, utxos, spendTimes, priceFn, currency)
 	default:
 		return fmt.Errorf("unknown method: %s", method)
 	}

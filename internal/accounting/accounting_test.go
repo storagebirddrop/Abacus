@@ -390,3 +390,122 @@ func TestSpecificID_Method(t *testing.T) {
 		t.Errorf("method = %q, want specificid", records[0].Method)
 	}
 }
+
+// --- Section 104 tests ---
+
+func TestSection104_UnspentOnly(t *testing.T) {
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, false, ""),
+		utxo("tx2", 0, 2_000_000, t2, false, ""),
+	}
+	price := fixedPrice(3_000_000) // 30,000 EUR/BTC
+	records := accounting.RunSection104("wallet-1", utxos, nil, price, "EUR")
+	if len(records) != 2 {
+		t.Fatalf("expected 2 records, got %d", len(records))
+	}
+	for _, r := range records {
+		if r.DisposedAt != nil {
+			t.Errorf("expected no disposal, got %v", r.DisposedAt)
+		}
+		if r.Method != domain.MethodSection104 {
+			t.Errorf("expected section104 method, got %s", r.Method)
+		}
+	}
+}
+
+func TestSection104_Pool(t *testing.T) {
+	// Acquire 1M sats then spend them — no same-day or 30-day match.
+	// Pool cost = full acquisition cost.
+	acqTime := t1
+	dispTime := t3 // 2 years later
+	spendTimes := map[string]time.Time{"spend1": dispTime}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, acqTime, true, "spend1"),
+	}
+	// Acquisition price: 30,000 EUR/BTC → cost = 30,000 cents
+	// Disposal price: 60,000 EUR/BTC → proceeds = 60,000 cents
+	// Gain = 60,000 - 30,000 = 30,000 cents
+	priceFn := func(currency string, t time.Time) int64 {
+		if t.Equal(acqTime) {
+			return 3_000_000 // 30,000 EUR/BTC
+		}
+		return 6_000_000 // 60,000 EUR/BTC
+	}
+	records := accounting.RunSection104("wallet-1", utxos, spendTimes, priceFn, "EUR")
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	r := records[0]
+	if r.DisposedAt == nil {
+		t.Fatal("expected disposal")
+	}
+	if *r.GainFiat != 30_000 {
+		t.Errorf("GainFiat = %d, want 30000", *r.GainFiat)
+	}
+}
+
+func TestSection104_SameDayRule(t *testing.T) {
+	// Acquire and dispose on the same day — same-day rule applies.
+	// The disposal should be matched against the same-day acquisition.
+	sameDay := t1
+	spendTimes := map[string]time.Time{"spend1": sameDay}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, sameDay, true, "spend1"),
+	}
+	// Fixed price 50,000 EUR/BTC → cost = proceeds = 50,000 cents → gain = 0
+	price := fixedPrice(5_000_000)
+	records := accounting.RunSection104("wallet-1", utxos, spendTimes, price, "EUR")
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	if *records[0].GainFiat != 0 {
+		t.Errorf("same-day gain = %d, want 0 (cost == proceeds)", *records[0].GainFiat)
+	}
+}
+
+func TestSection104_30DayRule(t *testing.T) {
+	// Dispose on day 0, acquire 10 days later — 30-day rule should match.
+	// Cost from the later acquisition should be used (not pool average).
+	dispTime := t1
+	acqTime := t1.AddDate(0, 0, 10)
+	spendTimes := map[string]time.Time{"spend1": dispTime}
+
+	// Disposal UTXO acquired well before disposal.
+	oldAcq := t1.AddDate(-1, 0, 0)
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, oldAcq, true, "spend1"),  // acquired 1yr ago, disposed on day 0
+		utxo("tx2", 0, 1_000_000, acqTime, false, ""),       // acquired 10 days after disposal
+	}
+	// Acquisition prices differ to verify which one is used.
+	priceFn := func(currency string, t time.Time) int64 {
+		switch {
+		case t.Equal(oldAcq):
+			return 2_000_000 // 20,000 EUR/BTC (old acquisition)
+		case t.Equal(acqTime):
+			return 4_000_000 // 40,000 EUR/BTC (30-day replacement)
+		case t.Equal(dispTime):
+			return 5_000_000 // 50,000 EUR/BTC (disposal proceeds)
+		}
+		return 0
+	}
+	records := accounting.RunSection104("wallet-1", utxos, spendTimes, priceFn, "EUR")
+
+	// Find the disposal record (tx1).
+	var dispRecord *domain.CostBasisRecord
+	for i := range records {
+		if records[i].Txid == "tx1" && records[i].DisposedAt != nil {
+			dispRecord = &records[i]
+		}
+	}
+	if dispRecord == nil {
+		t.Fatal("disposal record for tx1 not found")
+	}
+	// 30-day rule: cost = 40,000 cents (from the 10-day-later acquisition at 40,000 EUR/BTC)
+	// proceeds = 50,000 cents, gain = 10,000 cents
+	if dispRecord.CostFiat != 40_000 {
+		t.Errorf("30-day cost = %d, want 40000", dispRecord.CostFiat)
+	}
+	if *dispRecord.GainFiat != 10_000 {
+		t.Errorf("30-day gain = %d, want 10000", *dispRecord.GainFiat)
+	}
+}
