@@ -55,8 +55,11 @@ func (h *AccountingHandler) RunAccounting(w http.ResponseWriter, r *http.Request
 		req.Currency = "EUR"
 	}
 	method := domain.CostBasisMethod(req.Method)
-	if method != domain.MethodFIFO && method != domain.MethodAvgCost {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "method must be fifo or avgcost"})
+	switch method {
+	case domain.MethodFIFO, domain.MethodAvgCost, domain.MethodLIFO, domain.MethodHIFO, domain.MethodSpecificID:
+		// valid
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "method must be fifo, avgcost, lifo, hifo, or specificid"})
 		return
 	}
 
