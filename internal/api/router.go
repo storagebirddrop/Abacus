@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler, sth *SettingsHandler, frontendFS fs.FS) http.Handler {
+func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *ReportHandler, sh *SyncHandler, lh *LedgerHandler, ph *PortfolioHandler, sth *SettingsHandler, frontendFS fs.FS, sec SecurityConfig) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -18,6 +18,10 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(jsonContentType)
+		// Rate limit first (cheap reject), then optional bearer auth. Both are
+		// no-ops unless configured; health/version stay reachable for probes.
+		r.Use(rateLimiter(sec.RateLimitRPM))
+		r.Use(tokenAuth(sec.APIToken))
 		r.Get("/health", handleHealth(version))
 		r.Get("/version", handleVersion(version))
 

@@ -143,7 +143,14 @@ func main() {
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
 	portfolioHandler := api.NewPortfolioHandler(walletRepo, cbRepo, utxoRepo)
 	settingsHandler := api.NewSettingsHandler(settingsRepo)
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS)
+	sec := api.SecurityConfig{APIToken: cfg.APIToken, RateLimitRPM: cfg.RateLimitRPM}
+	if sec.APIToken != "" {
+		log.Println("API bearer-token auth: enabled")
+	}
+	if sec.RateLimitRPM > 0 {
+		log.Printf("API rate limit: %d req/min per IP", sec.RateLimitRPM)
+	}
+	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS, sec)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	srv := &http.Server{Addr: addr, Handler: router}
