@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import WalletsPage from './pages/WalletsPage'
 import WalletPage from './pages/WalletPage'
 import PricesPage from './pages/PricesPage'
@@ -25,10 +26,12 @@ const router = createBrowserRouter([
 
 export default function App() {
   return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <RouterProvider router={router} />
-      </ConfirmProvider>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <ConfirmProvider>
+          <RouterProvider router={router} />
+        </ConfirmProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }
