@@ -45,4 +45,16 @@ describe('apiFetch', () => {
       message: 'HTTP 500',
     })
   })
+
+  it('does not force an application/json content-type for FormData uploads', async () => {
+    // The browser must set multipart/form-data with a boundary itself, so the
+    // caller clears headers; this guards uploads against a JSON content-type.
+    mockFetch(async () => new Response('{}', { status: 200 }))
+    const fd = new FormData()
+    fd.append('file', new File(['{}'], 'w.json'))
+    await apiFetch('/wallets/w1/import', { method: 'POST', headers: {}, body: fd })
+    const init = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
+    expect(init.headers['Content-Type']).toBeUndefined()
+    expect(init.body).toBeInstanceOf(FormData)
+  })
 })
