@@ -57,11 +57,13 @@ func BuildDESummary(year int, rows []DETaxRow) DETaxSummary {
 		}
 	}
 
-	// Freigrenze applies (exemption kicks in) only for a positive net gain at or
-	// below the threshold. A net loss is simply not taxable.
-	greift := taxable > 0 && taxable <= freigrenzeCents
+	// Freigrenze applies (exemption kicks in) only for a positive net gain
+	// STRICTLY below the threshold: §23 Abs. 3 EStG exempts gains only if the
+	// yearly total is "weniger als" (less than) €600 / €1,000, so a gain of
+	// exactly the threshold is fully taxable. A net loss is simply not taxable.
+	greift := taxable > 0 && taxable < freigrenzeCents
 	net := taxable
-	if net <= freigrenzeCents {
+	if net < freigrenzeCents {
 		net = 0
 	}
 
