@@ -23,14 +23,18 @@ export function AccountingTab({ walletID }: { walletID: string }) {
   const [records, setRecords] = useState<CostBasisRecord[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    getAccountingSummary(walletID)
-      .then(setSummary)
-      .catch(() => {})
-    listCostBasis(walletID)
-      .then(setRecords)
-      .catch(() => {})
+    setLoadError('')
+    Promise.all([getAccountingSummary(walletID), listCostBasis(walletID)])
+      .then(([sum, recs]) => {
+        setSummary(sum)
+        setRecords(recs ?? [])
+      })
+      .catch((err: unknown) =>
+        setLoadError(err instanceof Error ? err.message : 'Failed to load accounting data'),
+      )
   }, [walletID])
 
   async function handleRun(e: React.FormEvent) {
@@ -51,6 +55,9 @@ export function AccountingTab({ walletID }: { walletID: string }) {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <p role="alert" className="text-sm text-red-500">{loadError}</p>
+      )}
       <form onSubmit={handleRun} className="flex items-end gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
         <div>
           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Method</label>

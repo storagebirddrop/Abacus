@@ -157,4 +157,31 @@ describe('WalletPage', () => {
     await waitFor(() => expect(m.startSync).toHaveBeenCalledWith('w1'))
     expect(await screen.findByText(/Sync job started/i)).toBeInTheDocument()
   })
+
+  it('surfaces a wallet-load failure instead of failing silently', async () => {
+    m.getWallet.mockRejectedValue(new Error('wallet not found'))
+    renderAt()
+    expect(await screen.findByRole('alert')).toHaveTextContent('wallet not found')
+  })
+
+  it('surfaces an accounting-load failure on the Accounting tab', async () => {
+    m.getAccountingSummary.mockRejectedValue(new Error('boom'))
+    renderAt()
+    await userEvent.click(await screen.findByRole('button', { name: 'Accounting' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom')
+  })
+
+  it('surfaces an import-history load failure on the Import tab', async () => {
+    m.listImportJobs.mockRejectedValue(new Error('history down'))
+    renderAt()
+    await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('history down')
+  })
+
+  it('surfaces a sync-history load failure on the Sync tab', async () => {
+    m.listSyncJobs.mockRejectedValue(new Error('sync down'))
+    renderAt()
+    await userEvent.click(await screen.findByRole('button', { name: 'Sync' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('sync down')
+  })
 })
