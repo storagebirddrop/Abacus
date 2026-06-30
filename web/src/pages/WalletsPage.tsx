@@ -210,6 +210,7 @@ export default function WalletsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      aria-label={`Delete wallet ${w.name}`}
                       onClick={() => handleDelete(w.id, w.name)}
                       className="text-red-500 hover:text-red-600 hover:bg-red-50"
                     >

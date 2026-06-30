@@ -1,2 +1,13 @@
 # Default owner for everything in the repo.
 * @storagebirddrop
+
+# Security-sensitive and money-path modules — explicit ownership so changes
+# here always route to review.
+/internal/accounting/       @storagebirddrop
+/internal/reports/          @storagebirddrop
+/internal/ledger/           @storagebirddrop
+/internal/sync/             @storagebirddrop
+/internal/importer/         @storagebirddrop
+/internal/api/middleware.go @storagebirddrop
+/migrations/                @storagebirddrop
+/.github/                   @storagebirddrop

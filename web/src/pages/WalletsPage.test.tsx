@@ -86,7 +86,7 @@ describe('WalletsPage', () => {
     renderPage()
 
     const row = (await screen.findByText('Cold Storage')).closest('tr')!
-    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(row).getByRole('button', { name: /delete wallet/i }))
 
     // Confirm dialog appears; click its destructive "Delete" action.
     const dialog = await screen.findByRole('dialog')
@@ -124,7 +124,7 @@ describe('WalletsPage', () => {
     renderPage()
 
     const row = (await screen.findByText('Cold Storage')).closest('tr')!
-    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+    await userEvent.click(within(row).getByRole('button', { name: /delete wallet/i }))
 
     const dialog = await screen.findByRole('dialog')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
