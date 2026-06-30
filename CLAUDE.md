@@ -193,5 +193,5 @@ Spec: `docs/api/swagger.yaml`.
 - `GET /api/v1/version`
 
 ### API security (`internal/api/middleware.go`)
-- **Rate limiting** — per-IP fixed window on `/api/v1`, `RATE_LIMIT_RPM` (default 600, `0` disables); returns 429 + `Retry-After`.
-- **Optional bearer auth** — set `API_TOKEN` to require `Authorization: Bearer <token>` on `/api/v1` (health/version exempt). Off by default for the offline/localhost case; the bundled web UI does not yet attach the token, so enabling it targets API/reverse-proxy deployments.
+- **Rate limiting** — per-IP fixed window on `/api/v1`, `RATE_LIMIT_RPM` (default 600, `0` disables); returns 429 + `Retry-After`. Client IP is the TCP peer by default; set `TRUST_PROXY=true` to derive it from `X-Forwarded-For`/`X-Real-IP` (only behind a trusted reverse proxy — otherwise the headers are spoofable). The health/version exemption is an exact path match (`/api/v1/health`, `/api/v1/version`), not a suffix.
+- **Optional bearer auth** — set `API_TOKEN` to require `Authorization: Bearer <token>` on `/api/v1` (health/version exempt). Off by default for the offline/localhost case. The bundled web UI attaches the token when one is saved on the Settings page (stored in `localStorage`), so enabling `API_TOKEN` no longer breaks the UI.

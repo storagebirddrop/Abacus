@@ -97,6 +97,10 @@
 - Every UI feature is also available via API
 - Frontend is a client — API is the product
 - OpenAPI 3.1 spec in `docs/api/swagger.yaml`
+- Optional security middleware (`internal/api/middleware.go`): bearer-token auth
+  (`API_TOKEN`) and per-IP rate limiting (`RATE_LIMIT_RPM`), both off/permissive
+  by default for the localhost case; `TRUST_PROXY` switches the rate-limit client
+  IP to `X-Forwarded-For`/`X-Real-IP` behind a trusted reverse proxy
 
 ## Data Integrity
 

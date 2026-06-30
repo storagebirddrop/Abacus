@@ -21,6 +21,16 @@ Everything built so far lives here until the first tagged release (`v1.0.0`).
 - Cross-wallet portfolio summary.
 - React dashboard; self-contained binary + Linux AppImage packaging.
 - API security: optional bearer-token auth (`API_TOKEN`) and per-IP rate limiting.
+- Web UI attaches the `API_TOKEN` bearer token when saved on the Settings page,
+  so enabling auth no longer breaks the bundled UI.
+- Server-side transaction search, status filter, and sort on the API and the
+  Transactions tab (works across the whole history, not just the current page).
+- Frontend: dark mode + accessibility pass, responsive sidebar, toast +
+  confirm dialogs, a React error boundary, and surfaced initial-load errors.
+- Release artifacts are signed with cosign (keyless) and published with a
+  `sha256sums.txt`; verification steps are in the release notes.
+- `NOTICE` file attributing bundled third-party components.
+- CI: Go coverage floor gate and `npm audit` on the frontend dependencies.
 
 ### Changed
 - Germany §23 EStG: year-dependent Freigrenze (€1,000 from 2024) and loss
@@ -28,9 +38,16 @@ Everything built so far lives here until the first tagged release (`v1.0.0`).
 
 ### Fixed
 - Average-cost precision loss (multiply-before-divide).
+- LIFO: only fall back to the disposal-time price when no lot was matched, so a
+  matched zero-cost lot is no longer overridden by the disposed UTXO's own price.
+- Germany §23 EStG Freigrenze is strictly-less-than the threshold ("weniger
+  als"), so a gain of exactly €600/€1,000 is taxable rather than exempt.
 - Electrum sync BTC→sats conversion now exact (no float truncation).
 - Blockchain sync: race-free Esplora rate limiter; cancellable, bounded sync
-  goroutine with graceful shutdown.
+  goroutine with graceful shutdown; sync endpoints return 404 (not 400/empty)
+  for a non-existent wallet.
+- Rate limiter ignores spoofable `X-Forwarded-For` unless `TRUST_PROXY` is set;
+  the auth health/version exemption is an exact path match.
 - Import uploads bounded (413 over the 32 MiB cap) to prevent memory exhaustion.
 
 [Unreleased]: https://github.com/storagebirddrop/Abacus/commits/main
