@@ -260,6 +260,41 @@ func TestLIFO_UnspentOnly(t *testing.T) {
 	}
 }
 
+func TestLIFO_ZeroCostMatchedLotIsNotOverridden(t *testing.T) {
+	// Regression for the old fallback `costFiat == 0 && proceedsFiat == 0`,
+	// which wrongly substituted the *disposed* UTXO's own acquisition price
+	// when LIFO had actually matched a different, zero-cost lot.
+	//
+	// tx1 (older) is disposed; tx2 (newer, unpriced → cost 0) is the lot LIFO
+	// matches it to. With no disposal price, cost must reflect the matched
+	// lot (0), not tx1's own acquisition price.
+	spendTimes := map[string]time.Time{"spend-tx": t3}
+	utxos := []domain.UTXO{
+		utxo("tx1", 0, 1_000_000, t1, true, "spend-tx"), // disposed
+		utxo("tx2", 0, 1_000_000, t2, false, ""),        // newest holding, unpriced
+	}
+	priceByTime := func(_ string, ts time.Time) int64 {
+		if ts.Equal(t1) {
+			return 2_000_000 // tx1 acquisition price — must NOT be used as cost
+		}
+		return 0 // tx2 acquisition and disposal time: no price data
+	}
+	records := accounting.RunLIFO("wallet-1", utxos, spendTimes, priceByTime, "EUR")
+
+	var disposal *domain.CostBasisRecord
+	for i := range records {
+		if records[i].DisposedAt != nil {
+			disposal = &records[i]
+		}
+	}
+	if disposal == nil {
+		t.Fatal("no disposal record found")
+	}
+	if disposal.CostFiat != 0 {
+		t.Errorf("CostFiat = %d, want 0 (matched lot tx2 is unpriced; tx1's own price must not be substituted)", disposal.CostFiat)
+	}
+}
+
 // --- HIFO tests ---
 
 func TestHIFO_DisposalMatchesHighestCost(t *testing.T) {
