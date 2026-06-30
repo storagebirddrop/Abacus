@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createWallet, deleteWallet, listWallets, type Wallet } from '../api/wallets'
 import { Button } from '../components/ui/button'
+import { useToast } from '../components/Toast'
+import { useConfirm } from '../components/ConfirmDialog'
 import {
   Dialog,
   DialogContent,
@@ -84,6 +86,8 @@ export default function WalletsPage() {
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { toast } = useToast()
+  const confirm = useConfirm()
 
   async function load() {
     try {
@@ -99,12 +103,19 @@ export default function WalletsPage() {
   useEffect(() => { load() }, [])
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete wallet "${name}"? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: 'Delete wallet',
+      description: `Delete wallet "${name}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      destructive: true,
+    })
+    if (!ok) return
     try {
       await deleteWallet(id)
       setWallets((prev) => prev.filter((w) => w.id !== id))
+      toast(`Deleted "${name}"`, 'success')
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Delete failed')
+      toast(err instanceof Error ? err.message : 'Delete failed', 'error')
     }
   }
 
