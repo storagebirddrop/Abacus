@@ -191,9 +191,35 @@ paths:
       - $ref: "#/components/parameters/WalletID"
       - $ref: "#/components/parameters/Page"
       - $ref: "#/components/parameters/Limit"
+      - name: search
+        in: query
+        description: Case-insensitive substring match on txid.
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: Filter by confirmation status.
+        schema:
+          type: string
+          enum: [confirmed, pending]
+      - name: sort
+        in: query
+        description: Sort field (defaults to date).
+        schema:
+          type: string
+          enum: [date, fee]
+          default: date
+      - name: dir
+        in: query
+        description: Sort direction (defaults to desc).
+        schema:
+          type: string
+          enum: [asc, desc]
+          default: desc
     get:
       tags: [transactions]
       summary: List transactions
+      description: Paginated, with optional server-side search, status filter, and sort.
       responses:
         "200":
           description: Paginated transactions

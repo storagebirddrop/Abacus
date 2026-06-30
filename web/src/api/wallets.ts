@@ -45,10 +45,32 @@ export const createWallet = (data: { name: string; descriptor: string }) =>
 export const deleteWallet = (id: string) =>
   apiFetch<void>(`/wallets/${id}`, { method: 'DELETE' })
 
-export const listTransactions = (walletID: string, limit: number, offset: number) =>
-  apiFetch<{ transactions: Transaction[]; total: number }>(
-    `/wallets/${walletID}/transactions?limit=${limit}&offset=${offset}`
-  )
+export interface TxQuery {
+  page?: number
+  limit?: number
+  search?: string
+  status?: '' | 'confirmed' | 'pending'
+  sort?: 'date' | 'fee'
+  dir?: 'asc' | 'desc'
+}
+
+export interface TxPage {
+  data: Transaction[]
+  total: number
+  page: number
+  limit: number
+}
+
+export const listTransactions = (walletID: string, q: TxQuery = {}) => {
+  const params = new URLSearchParams()
+  params.set('page', String(q.page ?? 1))
+  params.set('limit', String(q.limit ?? 50))
+  if (q.search) params.set('search', q.search)
+  if (q.status) params.set('status', q.status)
+  if (q.sort) params.set('sort', q.sort)
+  if (q.dir) params.set('dir', q.dir)
+  return apiFetch<TxPage>(`/wallets/${walletID}/transactions?${params.toString()}`)
+}
 
 export const importWallet = (walletID: string, file: File) => {
   const fd = new FormData()

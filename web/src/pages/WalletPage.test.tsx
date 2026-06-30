@@ -66,7 +66,7 @@ beforeEach(() => {
   Object.values(m).forEach((fn) => fn.mockReset())
   // Sensible defaults so any tab can mount without unhandled rejections.
   m.getWallet.mockResolvedValue(wallet)
-  m.listTransactions.mockResolvedValue({ transactions: [], total: 0 })
+  m.listTransactions.mockResolvedValue({ data: [], total: 0, page: 1, limit: 50 })
   m.getAccountingSummary.mockResolvedValue(null)
   m.listCostBasis.mockResolvedValue([])
   m.runAccounting.mockResolvedValue({} as AccountingSummary)
@@ -81,7 +81,11 @@ describe('WalletPage', () => {
   it('renders the wallet header and defaults to the Transactions tab', async () => {
     renderAt()
     expect(await screen.findByRole('heading', { name: 'Cold Storage' })).toBeInTheDocument()
-    await waitFor(() => expect(m.listTransactions).toHaveBeenCalledWith('w1', 50, 0))
+    await waitFor(() =>
+      expect(m.listTransactions).toHaveBeenCalledWith('w1', {
+        page: 1, limit: 50, search: '', status: '', sort: 'date', dir: 'desc',
+      }),
+    )
   })
 
   it('shows the empty-transactions message', async () => {
@@ -89,13 +93,17 @@ describe('WalletPage', () => {
     expect(await screen.findByText(/No transactions/i)).toBeInTheDocument()
   })
 
-  it('paginates transactions (Next advances the offset)', async () => {
-    m.listTransactions.mockResolvedValue({ transactions: [tx()], total: 120 })
+  it('paginates transactions (Next advances the page)', async () => {
+    m.listTransactions.mockResolvedValue({ data: [tx()], total: 120, page: 1, limit: 50 })
     renderAt()
     expect(await screen.findByText('Showing 1–50 of 120')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await waitFor(() => expect(m.listTransactions).toHaveBeenCalledWith('w1', 50, 50))
+    await waitFor(() =>
+      expect(m.listTransactions).toHaveBeenCalledWith('w1', {
+        page: 2, limit: 50, search: '', status: '', sort: 'date', dir: 'desc',
+      }),
+    )
   })
 
   it('runs accounting and renders the summary cards', async () => {
