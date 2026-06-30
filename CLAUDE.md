@@ -95,6 +95,7 @@ web/                        React + Vite frontend
 3. **No private data** — never store keys, seeds, or signing material; never import `.mv.db` (encrypted)
 4. **Layer discipline** — each layer only imports from the layer below
 5. **Plugin importers** — core never references Sparrow/Nunchuk directly
+6. **Privacy by default** — blockchain sync is opt-in (off until enabled in Settings). It discloses wallet addresses to the configured Esplora/Electrum server; prefer a self-hosted backend. Import uploads are capped at 32 MiB (`maxUploadBytes` in `internal/api/wallets.go`).
 
 ## Adding a New Wallet Importer
 
