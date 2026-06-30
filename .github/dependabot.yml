@@ -7,6 +7,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps(go)"
+    groups:
+      go-modules:
+        patterns: ["*"]
 
   - package-ecosystem: npm
     directory: "/web"
@@ -15,6 +18,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps(web)"
+    groups:
+      # One PR for routine updates; majors still come as their own PRs.
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -22,3 +30,6 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
+    groups:
+      github-actions:
+        patterns: ["*"]
