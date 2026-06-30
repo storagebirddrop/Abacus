@@ -40,10 +40,17 @@ jobs:
       - name: Test
         run: go test ./...
 
-      # Informational only — never fails the build (coverage tooling can vary by
-      # toolchain); the gating signal is the Test and race steps above.
-      - name: Coverage (informational)
-        run: go test -cover ./... || true
+      # Enforce a coverage floor so the suite can't silently regress. The floor
+      # is intentionally conservative (well below current total); raise it as
+      # coverage improves rather than chasing a number that blocks unrelated work.
+      - name: Coverage gate
+        run: |
+          MIN=30.0
+          go test -coverprofile=coverage.out ./...
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
+          echo "Total coverage: ${total}% (floor: ${MIN}%)"
+          awk -v t="$total" -v m="$MIN" 'BEGIN { exit (t+0 >= m+0) ? 0 : 1 }' \
+            || { echo "::error::coverage ${total}% is below the ${MIN}% floor"; exit 1; }
 
       - name: Test (race detector)
         run: go test -race ./...
@@ -62,6 +69,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: web
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate
         working-directory: web
 
       - name: Lint
