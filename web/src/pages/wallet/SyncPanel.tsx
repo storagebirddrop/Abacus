@@ -9,10 +9,16 @@ export function SyncPanel({ walletID }: { walletID: string }) {
   const [syncing, setSyncing] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const poll = usePoll()
 
   useEffect(() => {
-    listSyncJobs(walletID).then(setJobs).catch(() => {})
+    setLoadError('')
+    listSyncJobs(walletID)
+      .then((j) => setJobs(j ?? []))
+      .catch((err: unknown) =>
+        setLoadError(err instanceof Error ? err.message : 'Failed to load sync history'),
+      )
   }, [walletID])
 
   async function handleSync() {
@@ -44,6 +50,9 @@ export function SyncPanel({ walletID }: { walletID: string }) {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <p role="alert" className="text-sm text-red-500">{loadError}</p>
+      )}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
         <div>
           <h3 className="text-sm font-medium mb-1">Blockchain Sync</h3>

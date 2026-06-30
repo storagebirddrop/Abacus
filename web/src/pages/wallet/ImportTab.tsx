@@ -14,11 +14,17 @@ export function ImportTab({ walletID }: { walletID: string }) {
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const poll = usePoll()
 
   useEffect(() => {
-    listImportJobs(walletID).then((j) => setJobs(j ?? [])).catch(() => {})
+    setLoadError('')
+    listImportJobs(walletID)
+      .then((j) => setJobs(j ?? []))
+      .catch((err: unknown) =>
+        setLoadError(err instanceof Error ? err.message : 'Failed to load import history'),
+      )
   }, [walletID])
 
   async function handleUpload(e: React.FormEvent) {
@@ -51,6 +57,9 @@ export function ImportTab({ walletID }: { walletID: string }) {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <p role="alert" className="text-sm text-red-500">{loadError}</p>
+      )}
       <form onSubmit={handleUpload} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Upload wallet export</label>
