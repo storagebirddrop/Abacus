@@ -28,7 +28,7 @@ type DETaxSummary struct {
 	Rows                   []DETaxRow
 	TaxableGainCents       int64 // sum of short-term gains only
 	FreigrenzeCents        int64 // €600 through 2023, €1,000 from 2024 (year-dependent)
-	FreigreifenGilt        bool  // true if total taxable gain <= €600
+	FreigreifenGilt        bool  // true if positive net gain is within the year's Freigrenze
 	NetTaxableCents        int64 // 0 if Freigrenze applies, else TaxableGainCents
 }
 
@@ -119,6 +119,8 @@ func WriteTaxDECSV(w io.Writer, s DETaxSummary) error {
 		_ = cw.Write([]string{"Freigrenze greift", "Nein"})
 	}
 	_ = cw.Write([]string{"Zu versteuern (EUR)", fmtFiat(s.NetTaxableCents)})
+	_ = cw.Write([]string{})
+	_ = cw.Write([]string{"Hinweis: Ein Verlustvortrag in andere Jahre wird hier nicht berücksichtigt."})
 
 	cw.Flush()
 	return cw.Error()
@@ -171,6 +173,9 @@ func WriteTaxDEPDF(w io.Writer, s DETaxSummary) error {
 		}
 		m.AddRows(tableRow(vals, widths, i%2 == 1, aligns))
 	}
+
+	m.AddRow(6)
+	m.AddRows(summaryBox("Hinweis:", "Ein Verlustvortrag in andere Jahre wird hier nicht berücksichtigt."))
 
 	doc, err := m.Generate()
 	if err != nil {
