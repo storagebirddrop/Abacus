@@ -66,14 +66,20 @@ func RunLIFO(
 		proceedsFiat := satsToFiat(d.Sats, dispPrice)
 
 		var costFiat int64
+		matched := false
 		for i := range acqs {
 			if !acqs[i].matched {
 				costFiat = acqs[i].costFiat
 				acqs[i].matched = true
+				matched = true
 				break
 			}
 		}
-		if costFiat == 0 && proceedsFiat == 0 {
+		// Only fall back to the disposal-time acquisition price when no holding
+		// was matched. Keying off proceedsFiat==0 (the old condition) wrongly
+		// skipped the fallback whenever a disposal had price data, leaving cost
+		// at 0 and reporting the entire proceeds as gain. Mirror HIFO's guard.
+		if !matched {
 			costFiat = satsToFiat(d.Sats, price(currency, d.BlockTime))
 		}
 
