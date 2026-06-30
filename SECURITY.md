@@ -24,6 +24,13 @@ Understanding the model helps scope reports:
 - **Local-first.** The default deployment assumes a single user on localhost.
   Optional `API_TOKEN` bearer auth and per-IP rate limiting (`RATE_LIMIT_RPM`)
   exist for deployments exposed beyond localhost — see `.env.example`.
+- **Reverse proxies.** Per-IP rate limiting uses the TCP peer address by
+  default, so behind a proxy every request appears to come from the proxy and
+  shares one bucket. Set `TRUST_PROXY=true` to derive the client IP from
+  `X-Forwarded-For` / `X-Real-IP` — but only when a trusted proxy sets those
+  headers, since otherwise clients can spoof them to evade the limit. If the
+  proxy already enforces rate limits, leave `TRUST_PROXY` off and set
+  `RATE_LIMIT_RPM=0`.
 
 ## In scope
 

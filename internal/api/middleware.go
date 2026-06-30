@@ -17,6 +17,11 @@ type SecurityConfig struct {
 	APIToken string
 	// RateLimitRPM caps requests per client IP per minute. <= 0 disables it.
 	RateLimitRPM int
+	// TrustProxy, when true, derives the client IP from the X-Forwarded-For /
+	// X-Real-IP headers instead of the TCP peer address. Enable this ONLY when
+	// Abacus sits behind a trusted reverse proxy that sets these headers —
+	// otherwise a client can spoof them to evade per-IP rate limiting.
+	TrustProxy bool
 }
 
 // passthrough is a no-op middleware used when a feature is disabled.
@@ -31,7 +36,9 @@ func tokenAuth(token string) func(http.Handler) http.Handler {
 	expected := []byte("Bearer " + token)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if p := r.URL.Path; strings.HasSuffix(p, "/health") || strings.HasSuffix(p, "/version") {
+			// Exact match: a suffix check would let a future route such as
+			// /wallets/health silently bypass auth.
+			if p := r.URL.Path; p == "/api/v1/health" || p == "/api/v1/version" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -53,7 +60,7 @@ type rateBucket struct {
 
 // rateLimiter applies a fixed-window per-IP request cap. Returns a no-op
 // middleware when rpm <= 0.
-func rateLimiter(rpm int) func(http.Handler) http.Handler {
+func rateLimiter(rpm int, trustProxy bool) func(http.Handler) http.Handler {
 	if rpm <= 0 {
 		return passthrough
 	}
@@ -65,7 +72,7 @@ func rateLimiter(rpm int) func(http.Handler) http.Handler {
 	)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := clientIP(r)
+			ip := clientIP(r, trustProxy)
 			now := time.Now()
 
 			mu.Lock()
@@ -100,8 +107,23 @@ func rateLimiter(rpm int) func(http.Handler) http.Handler {
 	}
 }
 
-// clientIP extracts the remote host without the port.
-func clientIP(r *http.Request) string {
+// clientIP extracts the client host. When trustProxy is set it prefers the
+// first hop in X-Forwarded-For (the original client), falling back to X-Real-IP,
+// then the TCP peer address. Without trustProxy it always uses the peer address
+// so spoofed headers cannot influence per-IP rate limiting.
+func clientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			// Leftmost entry is the original client; the rest are proxies.
+			first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+			if first != "" {
+				return first
+			}
+		}
+		if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" {
+			return xr
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
