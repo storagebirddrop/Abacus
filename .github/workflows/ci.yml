@@ -41,11 +41,12 @@ jobs:
         run: go test ./...
 
       # Enforce a coverage floor so the suite can't silently regress. The floor
-      # is intentionally conservative (well below current total); raise it as
-      # coverage improves rather than chasing a number that blocks unrelated work.
+      # is intentionally conservative (current total under Go 1.26, which counts
+      # test-less packages, is ~29.6%); raise it as coverage improves rather than
+      # chasing a number that blocks unrelated work.
       - name: Coverage gate
         run: |
-          MIN=30.0
+          MIN=25.0
           go test -coverprofile=coverage.out ./...
           total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
           echo "Total coverage: ${total}% (floor: ${MIN}%)"
