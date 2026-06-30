@@ -1,0 +1,50 @@
+Abacus
+Copyright (c) the Abacus authors.
+
+This product bundles third-party open-source software. The principal
+components redistributed in the compiled binary / AppImage and the bundled
+web frontend are listed below with their licenses. This is a curated summary;
+the complete, authoritative dependency sets (including transitive
+dependencies) are in `go.mod` / `go.sum` and `web/package-lock.json`. Each
+library's full license text ships with its source and is available in its
+upstream repository.
+
+================================================================================
+Go backend
+================================================================================
+
+github.com/go-chi/chi/v5 .......................... MIT License
+github.com/golang-migrate/migrate/v4 .............. MIT License
+github.com/google/uuid ............................ BSD-3-Clause License
+github.com/mattn/go-sqlite3 ....................... MIT License
+github.com/btcsuite/btcd (and btcec, btcutil, …) .. ISC License
+github.com/johnfercher/maroto/v2 .................. MIT License
+github.com/pdfcpu/pdfcpu .......................... Apache-2.0 License
+github.com/xuri/excelize/v2 ....................... BSD-3-Clause License
+
+The btcsuite packages are used solely for public address derivation from
+output descriptors. Abacus never imports, derives, or stores private keys or
+signing material.
+
+================================================================================
+Web frontend
+================================================================================
+
+react, react-dom .................................. MIT License
+react-router-dom .................................. MIT License
+@radix-ui/react-dialog, react-select, react-slot .. MIT License
+lucide-react ...................................... ISC License
+class-variance-authority .......................... Apache-2.0 License
+clsx .............................................. MIT License
+tailwind-merge .................................... MIT License
+tailwindcss (build-time) .......................... MIT License
+vite (build-time) ................................. MIT License
+
+================================================================================
+
+The Apache-2.0 licensed components (pdfcpu, class-variance-authority) are
+included under the terms of the Apache License, Version 2.0; you may obtain a
+copy at http://www.apache.org/licenses/LICENSE-2.0. All other components are
+included under their respective permissive licenses (MIT / BSD-3-Clause / ISC),
+each of which requires preservation of copyright and license notices — see the
+upstream repositories for full texts.
