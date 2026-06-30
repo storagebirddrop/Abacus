@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -16,6 +17,11 @@ import (
 	"github.com/storagebirddrop/abacus/internal/domain"
 	"github.com/storagebirddrop/abacus/internal/importer"
 )
+
+// maxUploadBytes caps wallet-import uploads. Wallet exports (descriptors, tx
+// history, BIP329 labels) are small; this guards against memory exhaustion from
+// an oversized upload being read fully into memory.
+const maxUploadBytes = 32 << 20 // 32 MiB
 
 type walletStore interface {
 	Create(ctx context.Context, w *domain.Wallet) error
@@ -164,7 +170,15 @@ func (h *WalletHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
+	// Cap the entire request body so neither ParseMultipartForm nor the
+	// io.ReadAll below can be driven to exhaust memory.
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, fmt.Errorf("upload exceeds %d MiB limit", maxUploadBytes>>20))
+			return
+		}
 		writeError(w, http.StatusBadRequest, errors.New("invalid multipart form"))
 		return
 	}
@@ -174,6 +188,11 @@ func (h *WalletHandler) Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	if header.Size > maxUploadBytes {
+		writeError(w, http.StatusRequestEntityTooLarge, fmt.Errorf("file is %d bytes, exceeds %d MiB limit", header.Size, maxUploadBytes>>20))
+		return
+	}
 
 	data, err := io.ReadAll(file)
 	if err != nil {

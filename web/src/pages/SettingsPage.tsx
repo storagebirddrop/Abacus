@@ -77,6 +77,17 @@ export default function SettingsPage() {
 
           {settings.sync_enabled && (
             <div className="space-y-6 pl-7">
+              {/* Privacy warning */}
+              <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-800">
+                  <span className="font-semibold">Privacy notice:</span> syncing queries the
+                  server below for your wallet's addresses, revealing them — and that they belong
+                  to one wallet — to that third party. For maximum privacy, point this at an
+                  Esplora or Electrum instance you host yourself. Abacus never sends keys or
+                  signing material.
+                </p>
+              </div>
+
               {/* Backend selector */}
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Backend</p>
