@@ -42,6 +42,19 @@ Blockchain sync is **opt-in and off by default**. When enabled, syncing queries 
 
 Wallet-import uploads are capped at 32 MiB.
 
+## Securing the API
+
+Abacus defaults to the single-user, localhost case. For deployments exposed beyond
+localhost, two opt-in controls live on `/api/v1` (configured via `.env`):
+
+- `API_TOKEN` — require `Authorization: Bearer <token>` on all routes except
+  `/health` and `/version`. The bundled web UI attaches this token once you save
+  it on the **Settings → API access** page (stored in the browser).
+- `RATE_LIMIT_RPM` — per-IP request cap per minute (default 600; `0` disables).
+  Behind a reverse proxy, set `TRUST_PROXY=true` so the limiter uses the real
+  client IP from `X-Forwarded-For`/`X-Real-IP` — **only** behind a trusted proxy,
+  since those headers are otherwise spoofable. See `SECURITY.md`.
+
 ## Quick Start
 
 **Docker (recommended)**
@@ -57,6 +70,18 @@ docker compose up --build
 # Download the latest release from GitHub Releases
 chmod +x Abacus-*-x86_64.AppImage
 ./Abacus-*-x86_64.AppImage
+```
+
+Releases are signed with [cosign](https://docs.sigstore.dev/) (keyless) and ship a
+`sha256sums.txt`. To verify before running:
+```bash
+sha256sum -c sha256sums.txt
+cosign verify-blob \
+  --certificate Abacus-<version>-x86_64.AppImage.pem \
+  --signature  Abacus-<version>-x86_64.AppImage.sig \
+  --certificate-identity-regexp 'https://github.com/storagebirddrop/Abacus/.github/workflows/release.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  Abacus-<version>-x86_64.AppImage
 ```
 
 Open http://localhost:8080
@@ -140,8 +165,9 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Backlog 6 — BIP329 label export + `POST /labels` | ✅ |
 | Backlog 7 — Linux AppImage packaging + GitHub Release CI | ✅ |
 | Settings — UI-driven blockchain sync config (opt-in, runtime-configurable) | ✅ |
-| Manual — push `v1.0.0` tag to trigger AppImage release (requires local git or GitHub UI; CI token lacks `Contents: write`) | ⏳ |
-| Manual — delete 13 stale remote branches (run `git push origin --delete <branches>` locally; no branch-delete API available in CI) | ⏳ |
+| Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, dark mode + a11y | ✅ |
+| Manual — push `v1.0.0` tag to trigger the signed AppImage release (requires local git or GitHub UI; CI token lacks `Contents: write`) | ⏳ |
+| Manual — delete merged remote branches (run `git push origin --delete <branches>` locally, or enable auto-delete in repo settings) | ⏳ |
 
 ## License
 
