@@ -9,32 +9,27 @@ import {
   DialogTrigger,
 } from '../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { useDialog } from '../hooks/useDialog'
 
 function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: () => void }) {
-  const [open, setOpen] = useState(false)
   const [date, setDate] = useState('')
   const [price, setPrice] = useState('')
   const [source, setSource] = useState('manual')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const { open, setOpen, error, loading, submit } = useDialog(onCreated)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const ts = Math.floor(new Date(date).getTime() / 1000)
-      const priceCents = Math.round(parseFloat(price) * 100)
-      await createPrice({ currency, price_fiat: priceCents, source, timestamp: ts })
-      setOpen(false)
-      setDate('')
-      setPrice('')
-      onCreated()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed')
-    } finally {
-      setLoading(false)
-    }
+    await submit(
+      () => {
+        const ts = Math.floor(new Date(date).getTime() / 1000)
+        const priceCents = Math.round(parseFloat(price) * 100)
+        return createPrice({ currency, price_fiat: priceCents, source, timestamp: ts })
+      },
+      () => {
+        setDate('')
+        setPrice('')
+      },
+    )
   }
 
   return (

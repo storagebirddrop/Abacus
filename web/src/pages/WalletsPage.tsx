@@ -4,6 +4,7 @@ import { createWallet, deleteWallet, listWallets, type Wallet } from '../api/wal
 import { Button } from '../components/ui/button'
 import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/ConfirmDialog'
+import { useDialog } from '../hooks/useDialog'
 import {
   Dialog,
   DialogContent,
@@ -13,27 +14,19 @@ import {
 } from '../components/ui/dialog'
 
 function CreateWalletDialog({ onCreated }: { onCreated: () => void }) {
-  const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [descriptor, setDescriptor] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const { open, setOpen, error, loading, submit } = useDialog(onCreated)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await createWallet({ name, descriptor })
-      setOpen(false)
-      setName('')
-      setDescriptor('')
-      onCreated()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create wallet')
-    } finally {
-      setLoading(false)
-    }
+    await submit(
+      () => createWallet({ name, descriptor }),
+      () => {
+        setName('')
+        setDescriptor('')
+      },
+    )
   }
 
   return (
