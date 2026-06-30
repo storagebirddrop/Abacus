@@ -40,6 +40,11 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # Informational only — never fails the build (coverage tooling can vary by
+      # toolchain); the gating signal is the Test and race steps above.
+      - name: Coverage (informational)
+        run: go test -cover ./... || true
+
       - name: Test (race detector)
         run: go test -race ./...
 
