@@ -34,6 +34,14 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 - Connect to your wallet or sign transactions
 - Replace Sparrow, Nunchuk, or any other wallet
 
+## Privacy
+
+Abacus works on **public wallet data only** (xpubs, addresses, txids) and is designed to run self-hosted and offline. It never stores or transmits keys or signing material, and encrypted Sparrow databases (`.mv.db`) are rejected outright.
+
+Blockchain sync is **opt-in and off by default**. When enabled, syncing queries the configured Esplora/Electrum server for your wallet's addresses — disclosing them, and the fact that they belong to one wallet, to that third party. For maximum privacy, point sync at an Esplora or Electrum instance you host yourself. Sync is configured at runtime in the in-app **Settings** page (persisted in SQLite; no restart needed).
+
+Wallet-import uploads are capped at 32 MiB.
+
 ## Quick Start
 
 **Docker (recommended)**
