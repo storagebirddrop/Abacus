@@ -8,17 +8,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	stdsync "sync"
 	"time"
 
 	"github.com/storagebirddrop/abacus/internal/sync"
 )
 
 // Backend queries an Esplora-compatible REST API.
+// It is safe for concurrent use: the rate-limiter state is mutex-guarded.
 type Backend struct {
 	baseURL    string
 	httpClient *http.Client
 	rateDelay  time.Duration
-	lastReq    time.Time
+
+	mu      stdsync.Mutex
+	lastReq time.Time
 }
 
 func New(baseURL string, rateDelayMS int) *Backend {
@@ -54,8 +58,12 @@ func (b *Backend) GetTransactions(ctx context.Context, address string) ([]sync.T
 	return records, nil
 }
 
-func (b *Backend) get(ctx context.Context, path string, out any) error {
-	// Simple rate limiting: wait if we called too recently.
+// throttle enforces the configured minimum spacing between requests. The lock
+// is held across the wait so concurrent callers are paced correctly rather than
+// racing on lastReq.
+func (b *Backend) throttle(ctx context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if delay := b.rateDelay - time.Since(b.lastReq); delay > 0 {
 		select {
 		case <-ctx.Done():
@@ -64,6 +72,13 @@ func (b *Backend) get(ctx context.Context, path string, out any) error {
 		}
 	}
 	b.lastReq = time.Now()
+	return nil
+}
+
+func (b *Backend) get(ctx context.Context, path string, out any) error {
+	if err := b.throttle(ctx); err != nil {
+		return err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.baseURL+path, nil)
 	if err != nil {

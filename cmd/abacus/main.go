@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	abacus "github.com/storagebirddrop/abacus"
 	"github.com/storagebirddrop/abacus/internal/accounting"
@@ -27,6 +30,10 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	// Root context cancelled on SIGINT/SIGTERM; propagates to in-flight sync jobs.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	// Register importers in priority order.
 	// Nunchuk first: claims BSMS files before Sparrow.
@@ -109,7 +116,7 @@ func main() {
 	// Services
 	importSvc := importer.NewService(db, walletRepo, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
 	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
-	syncSvc := abacussync.NewService(db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, backendFactory)
+	syncSvc := abacussync.NewService(ctx, db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, backendFactory)
 
 	// Frontend FS: use FRONTEND_DIR env var for dev (disk); otherwise embedded.
 	var frontendFS fs.FS
@@ -139,8 +146,23 @@ func main() {
 	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
-	log.Printf("Abacus %s starting on %s", cfg.Version, addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("server error: %v", err)
+	srv := &http.Server{Addr: addr, Handler: router}
+
+	go func() {
+		log.Printf("Abacus %s starting on %s", cfg.Version, addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	// Block until a shutdown signal cancels the root context.
+	<-ctx.Done()
+	stop() // restore default signal handling so a second signal force-quits
+	log.Println("Shutting down…")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
 	}
 }
