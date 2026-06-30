@@ -112,6 +112,10 @@ export default function PricesPage() {
 
   async function load() {
     setLoading(true)
+    // Clear stale rows/errors so a failed refetch can't leave the previous
+    // currency's prices showing under the spinner.
+    setError('')
+    setPrices([])
     try {
       const data = await listPrices(currency)
       setPrices(data ?? [])
