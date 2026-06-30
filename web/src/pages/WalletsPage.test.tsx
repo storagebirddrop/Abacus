@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { ToastProvider } from '../components/Toast'
+import { ConfirmProvider } from '../components/ConfirmDialog'
 import type { Wallet } from '../api/wallets'
 
 vi.mock('../api/wallets', () => ({
@@ -25,7 +27,15 @@ function wallet(over: Partial<Wallet> = {}): Wallet {
 }
 
 function renderPage() {
-  return render(<MemoryRouter><WalletsPage /></MemoryRouter>)
+  return render(
+    <MemoryRouter>
+      <ToastProvider>
+        <ConfirmProvider>
+          <WalletsPage />
+        </ConfirmProvider>
+      </ToastProvider>
+    </MemoryRouter>,
+  )
 }
 
 beforeEach(() => {
@@ -70,26 +80,32 @@ describe('WalletsPage', () => {
     expect(listMock).toHaveBeenCalledTimes(2)
   })
 
-  it('deletes a wallet after confirmation', async () => {
+  it('deletes a wallet after confirming in the dialog', async () => {
     listMock.mockResolvedValue([wallet()])
     deleteMock.mockResolvedValue(undefined)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderPage()
 
     const row = (await screen.findByText('Cold Storage')).closest('tr')!
     await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+
+    // Confirm dialog appears; click its destructive "Delete" action.
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(deleteMock).toHaveBeenCalledWith('w1'))
     await waitFor(() => expect(screen.queryByText('Cold Storage')).not.toBeInTheDocument())
+    expect(await screen.findByText(/Deleted "Cold Storage"/)).toBeInTheDocument()
   })
 
-  it('does not delete when confirmation is dismissed', async () => {
+  it('does not delete when the dialog is cancelled', async () => {
     listMock.mockResolvedValue([wallet()])
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderPage()
 
     const row = (await screen.findByText('Cold Storage')).closest('tr')!
     await userEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
     expect(deleteMock).not.toHaveBeenCalled()
     expect(screen.getByText('Cold Storage')).toBeInTheDocument()
