@@ -26,6 +26,7 @@ const baseSettings: AppSettings = {
 beforeEach(() => {
   getSettings.mockReset()
   updateSettings.mockReset()
+  localStorage.clear()
 })
 
 describe('SettingsPage privacy notice', () => {
@@ -53,6 +54,18 @@ describe('SettingsPage privacy notice', () => {
     expect(notice).toBeInTheDocument()
     expect(notice.textContent).toMatch(/addresses/i)
     expect(notice.textContent).toMatch(/host (it )?yourself/i)
+  })
+
+  it('saves an API token to localStorage', async () => {
+    getSettings.mockResolvedValue({ ...baseSettings })
+    render(<SettingsPage />)
+    await screen.findByText('Enable blockchain sync')
+
+    await userEvent.type(screen.getByLabelText('API token'), 'my-secret')
+    await userEvent.click(screen.getByRole('button', { name: 'Save token' }))
+
+    expect(localStorage.getItem('abacus-api-token')).toBe('my-secret')
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
   })
 
   it('renders an error when settings fail to load', async () => {

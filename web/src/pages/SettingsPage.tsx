@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSettings, updateSettings, type AppSettings } from '../api/settings'
+import { getToken, setToken } from '../api/token'
 import { Button } from '../components/ui/button'
 
 export default function SettingsPage() {
@@ -8,6 +9,15 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [apiToken, setApiToken] = useState(getToken())
+  const [tokenSaved, setTokenSaved] = useState(false)
+
+  function saveToken(e: React.FormEvent) {
+    e.preventDefault()
+    setToken(apiToken.trim())
+    setTokenSaved(true)
+    setTimeout(() => setTokenSaved(false), 3000)
+  }
 
   useEffect(() => {
     load()
@@ -191,6 +201,34 @@ export default function SettingsPage() {
             {saving ? 'Saving…' : 'Save settings'}
           </Button>
           {saved && <span className="text-sm text-green-600">Saved</span>}
+        </div>
+      </form>
+
+      {/* API access — client-side only; needed when the server runs with API_TOKEN set. */}
+      <form onSubmit={saveToken} className="mt-10 border-t border-slate-200 dark:border-slate-800 pt-8 space-y-3">
+        <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">API access</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Only needed if this server was started with an <code>API_TOKEN</code>. The token is
+          stored in this browser and sent as a bearer token with each request. Leave blank for the
+          default localhost setup.
+        </p>
+        <div>
+          <label htmlFor="api-token" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+            API token
+          </label>
+          <input
+            id="api-token"
+            type="password"
+            autoComplete="off"
+            className="w-full sm:w-96 border border-slate-300 dark:border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            value={apiToken}
+            onChange={(e) => setApiToken(e.target.value)}
+            placeholder="paste API token…"
+          />
+        </div>
+        <div className="flex items-center gap-4">
+          <Button type="submit">Save token</Button>
+          {tokenSaved && <span className="text-sm text-green-600">Saved</span>}
         </div>
       </form>
     </div>
