@@ -191,3 +191,7 @@ Spec: `docs/api/swagger.yaml`.
 ### System
 - `GET /api/v1/health`
 - `GET /api/v1/version`
+
+### API security (`internal/api/middleware.go`)
+- **Rate limiting** — per-IP fixed window on `/api/v1`, `RATE_LIMIT_RPM` (default 600, `0` disables); returns 429 + `Retry-After`.
+- **Optional bearer auth** — set `API_TOKEN` to require `Authorization: Bearer <token>` on `/api/v1` (health/version exempt). Off by default for the offline/localhost case; the bundled web UI does not yet attach the token, so enabling it targets API/reverse-proxy deployments.
