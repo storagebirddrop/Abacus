@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      id-token: write   # OIDC token for keyless cosign signing
 
     steps:
       - uses: actions/checkout@v7
@@ -36,8 +37,49 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
 
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum Abacus-*-x86_64.AppImage > sha256sums.txt
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign artifacts (keyless)
+        working-directory: dist
+        env:
+          COSIGN_YES: "true"
+        run: |
+          for f in Abacus-*-x86_64.AppImage sha256sums.txt; do
+            cosign sign-blob --yes \
+              --output-signature "$f.sig" \
+              --output-certificate "$f.pem" \
+              "$f"
+          done
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Abacus-*-x86_64.AppImage
+          files: |
+            dist/Abacus-*-x86_64.AppImage
+            dist/sha256sums.txt
+            dist/*.sig
+            dist/*.pem
           generate_release_notes: true
+          body: |
+            ## Verifying this release
+
+            Each artifact is signed with [cosign](https://docs.sigstore.dev/) using
+            keyless (OIDC) signing — no long-lived key. Verify the AppImage with:
+
+            ```sh
+            # checksum
+            sha256sum -c sha256sums.txt
+
+            # cosign signature (identity = this repo's release workflow)
+            cosign verify-blob \
+              --certificate Abacus-<version>-x86_64.AppImage.pem \
+              --signature  Abacus-<version>-x86_64.AppImage.sig \
+              --certificate-identity-regexp 'https://github.com/storagebirddrop/Abacus/.github/workflows/release.yml@.*' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              Abacus-<version>-x86_64.AppImage
+            ```
