@@ -23,7 +23,7 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
       .finally(() => setLoading(false))
   }, [walletID, offset])
 
-  if (loading) return <p className="text-slate-500 p-6">Loading…</p>
+  if (loading) return <p className="text-slate-500 dark:text-slate-400 p-6">Loading…</p>
   if (error) return <p className="text-red-500 p-6">{error}</p>
 
   return (
@@ -33,26 +33,26 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
         <p className="text-slate-400 p-6">No transactions. Import a wallet file first.</p>
       ) : (
         <>
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Txid</th>
-                  <th className="text-right px-4 py-3 font-medium text-slate-600">Fee (sats)</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Txid</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Fee (sats)</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {txs.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-500">
+                  <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                       {tx.block_time ? new Date(tx.block_time).toLocaleDateString() : 'Unconfirmed'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-700">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">
                       {tx.txid.slice(0, 16)}…{tx.txid.slice(-8)}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-500">{tx.fee_sats ?? '—'}</td>
+                    <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">{tx.fee_sats ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span className={cn(
                         'text-xs px-2 py-0.5 rounded-full',
@@ -66,7 +66,7 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center gap-4 mt-4 text-sm text-slate-500">
+          <div className="flex items-center gap-4 mt-4 text-sm text-slate-500 dark:text-slate-400">
             <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - limit))}>
               Previous
             </Button>

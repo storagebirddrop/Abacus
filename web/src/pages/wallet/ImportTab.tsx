@@ -51,10 +51,10 @@ export function ImportTab({ walletID }: { walletID: string }) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleUpload} className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
+      <form onSubmit={handleUpload} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Upload wallet export</label>
-          <p className="text-xs text-slate-500 mb-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
             Supported formats: Sparrow (JSON, CSV, BIP329 .jsonl) · Nunchuk (JSON, BSMS, BIP329 .jsonl) ·
             Coldcard (coldcard-export.json) · Specter Desktop (JSON descriptor export) ·
             Electrum (JSON wallet export, unencrypted only) · Generic JSON with descriptor field (Jade, Passport, SeedSigner, etc.)
@@ -67,7 +67,7 @@ export function ImportTab({ walletID }: { walletID: string }) {
             required
           />
         </div>
-        {status && <p className="text-sm text-slate-600">{status}</p>}
+        {status && <p className="text-sm text-slate-600 dark:text-slate-300">{status}</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         <Button type="submit" disabled={uploading}>
           {uploading ? 'Importing…' : 'Import'}
@@ -75,29 +75,29 @@ export function ImportTab({ walletID }: { walletID: string }) {
       </form>
 
       {jobs.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">File</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Source</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Records</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Started</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">File</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Records</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Started</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="px-4 py-3 text-slate-700">{j.filename || '—'}</td>
-                  <td className="px-4 py-3 text-slate-500 capitalize">{j.source}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{j.filename || '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 capitalize">{j.source}</td>
                   <td className="px-4 py-3">
                     <span className={cn(
                       'text-xs px-2 py-0.5 rounded-full',
                       j.status === 'done' && 'bg-green-100 text-green-700',
                       j.status === 'failed' && 'bg-red-100 text-red-700',
                       j.status === 'running' && 'bg-blue-100 text-blue-700',
-                      j.status === 'pending' && 'bg-slate-100 text-slate-600',
+                      j.status === 'pending' && 'bg-slate-100 text-slate-600 dark:text-slate-300',
                     )}>
                       {j.status}
                     </span>
@@ -105,8 +105,8 @@ export function ImportTab({ walletID }: { walletID: string }) {
                       <span className="ml-2 text-xs text-red-500">{j.error_message}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500">{j.records_imported ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">{j.records_imported ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                     {j.started_at ? new Date(j.started_at).toLocaleString() : '—'}
                   </td>
                 </tr>
