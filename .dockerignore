@@ -1,0 +1,23 @@
+# Keep the build context small and reproducible.
+.git
+.github
+.gitignore
+
+# Node + frontend build output (the frontend stage rebuilds web/dist).
+web/node_modules
+web/dist
+node_modules
+
+# Local build artifacts / packaging output.
+dist
+Abacus.AppDir
+*.AppImage
+
+# Databases and local env.
+*.db
+*.db-shm
+*.db-wal
+.env
+
+# Editor / OS cruft.
+.DS_Store
