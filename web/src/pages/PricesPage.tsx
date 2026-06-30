@@ -51,7 +51,7 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
             <label className="block text-sm font-medium mb-1">Date</label>
             <input
               type="date"
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
@@ -63,7 +63,7 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
               type="number"
               step="0.01"
               min="0"
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="30000.00"
@@ -73,7 +73,7 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
           <div>
             <label className="block text-sm font-medium mb-1">Source</label>
             <input
-              className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="manual"
@@ -148,7 +148,7 @@ export default function PricesPage() {
         </div>
       </div>
 
-      {loading && <p className="text-slate-500">Loading…</p>}
+      {loading && <p className="text-slate-500 dark:text-slate-400">Loading…</p>}
       {error && <p className="text-red-500">{error}</p>}
 
       {!loading && prices.length === 0 && (
@@ -159,33 +159,33 @@ export default function PricesPage() {
       )}
 
       {prices.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
                   <button className="hover:text-slate-900" onClick={() => toggleSort('date')}>
                     Date{sortKey === 'date' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">
+                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
                   <button className="hover:text-slate-900" onClick={() => toggleSort('price')}>
                     Price ({currency}/BTC){sortKey === 'price' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {sorted.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-700">
+                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
                     {new Date(p.timestamp).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">
                     {(p.price_fiat / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{p.source}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{p.source}</td>
                 </tr>
               ))}
             </tbody>

@@ -45,7 +45,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>{opts?.title}</DialogTitle>
           </DialogHeader>
-          {opts?.description && <p className="text-sm text-slate-600">{opts.description}</p>}
+          {opts?.description && <p className="text-sm text-slate-600 dark:text-slate-300">{opts.description}</p>}
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => settle(false)}>
               {opts?.cancelText ?? 'Cancel'}
