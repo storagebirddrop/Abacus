@@ -97,6 +97,28 @@ describe('WalletsPage', () => {
     expect(await screen.findByText(/Deleted "Cold Storage"/)).toBeInTheDocument()
   })
 
+  it('filters the list via the search box', async () => {
+    listMock.mockResolvedValue([wallet(), wallet({ id: 'w2', name: 'Hot Wallet', fingerprint: 'ffff' })])
+    renderPage()
+    await screen.findByText('Cold Storage')
+
+    await userEvent.type(screen.getByRole('searchbox', { name: /search wallets/i }), 'hot')
+    expect(screen.getByText('Hot Wallet')).toBeInTheDocument()
+    expect(screen.queryByText('Cold Storage')).not.toBeInTheDocument()
+  })
+
+  it('sorts by name and reverses on header click', async () => {
+    listMock.mockResolvedValue([wallet({ id: 'w2', name: 'Zebra' }), wallet({ id: 'w1', name: 'Alpha' })])
+    renderPage()
+    await screen.findByText('Alpha')
+
+    const names = () => screen.getAllByRole('link').map((a) => a.textContent)
+    expect(names()).toEqual(['Alpha', 'Zebra']) // default asc
+
+    await userEvent.click(screen.getByRole('button', { name: /^Name/ }))
+    expect(names()).toEqual(['Zebra', 'Alpha']) // desc after toggle
+  })
+
   it('does not delete when the dialog is cancelled', async () => {
     listMock.mockResolvedValue([wallet()])
     renderPage()

@@ -95,6 +95,25 @@ export default function PricesPage() {
   const [prices, setPrices] = useState<PriceSnapshot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [sortKey, setSortKey] = useState<'date' | 'price'>('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleSort(key: 'date' | 'price') {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'date' ? 'desc' : 'asc')
+    }
+  }
+
+  const sorted = [...prices].sort((a, b) => {
+    const cmp =
+      sortKey === 'date'
+        ? (a.timestamp || '').localeCompare(b.timestamp || '')
+        : a.price_fiat - b.price_fiat
+    return sortDir === 'asc' ? cmp : -cmp
+  })
 
   async function load() {
     setLoading(true)
@@ -144,13 +163,21 @@ export default function PricesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Price ({currency}/BTC)</th>
+                <th className="text-left px-4 py-3 font-medium text-slate-600">
+                  <button className="hover:text-slate-900" onClick={() => toggleSort('date')}>
+                    Date{sortKey === 'date' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </button>
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-slate-600">
+                  <button className="hover:text-slate-900" onClick={() => toggleSort('price')}>
+                    Price ({currency}/BTC){sortKey === 'price' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </button>
+                </th>
                 <th className="text-left px-4 py-3 font-medium text-slate-600">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {prices.map((p) => (
+              {sorted.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-700">
                     {new Date(p.timestamp).toLocaleDateString()}

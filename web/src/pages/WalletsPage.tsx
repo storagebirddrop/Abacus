@@ -88,6 +88,32 @@ export default function WalletsPage() {
   const [error, setError] = useState('')
   const { toast } = useToast()
   const confirm = useConfirm()
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<'name' | 'created'>('name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  function toggleSort(key: 'name' | 'created') {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const visible = wallets
+    .filter((w) => {
+      const q = search.trim().toLowerCase()
+      if (!q) return true
+      return w.name.toLowerCase().includes(q) || w.fingerprint.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      const cmp =
+        sortKey === 'name'
+          ? a.name.localeCompare(b.name)
+          : (a.created_at || '').localeCompare(b.created_at || '')
+      return sortDir === 'asc' ? cmp : -cmp
+    })
 
   async function load() {
     try {
@@ -137,19 +163,42 @@ export default function WalletsPage() {
       )}
 
       {wallets.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Network</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Created</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {wallets.map((w) => (
+        <>
+          <input
+            type="search"
+            aria-label="Search wallets"
+            placeholder="Search by name or fingerprint…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-72 mb-4 border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+
+          {visible.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <p>No wallets match “{search}”.</p>
+            </div>
+          ) : (
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">
+                    <button className="hover:text-slate-900" onClick={() => toggleSort('name')}>
+                      Name{sortKey === 'name' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Network</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">
+                    <button className="hover:text-slate-900" onClick={() => toggleSort('created')}>
+                      Created{sortKey === 'created' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visible.map((w) => (
                 <tr key={w.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <Link to={`/wallets/${w.id}`} className="font-medium text-slate-900 hover:underline">
@@ -176,9 +225,11 @@ export default function WalletsPage() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+          )}
+        </>
       )}
     </div>
   )

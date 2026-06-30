@@ -43,6 +43,20 @@ describe('PricesPage', () => {
     expect(await screen.findByText('No price snapshots')).toBeInTheDocument()
   })
 
+  it('sorts by price when the Price header is toggled', async () => {
+    listMock.mockResolvedValue([
+      price({ id: 'p1', price_fiat: 3_000_000, timestamp: '2024-01-02T00:00:00Z' }),
+      price({ id: 'p2', price_fiat: 1_000_000, timestamp: '2024-02-02T00:00:00Z' }),
+    ])
+    render(<PricesPage />)
+    await screen.findByText('30,000.00')
+
+    // Toggle to sort by price ascending → 10,000.00 row comes first.
+    await userEvent.click(screen.getByRole('button', { name: /^Price/ }))
+    const prices = screen.getAllByText(/,\d{3}\.00$/).map((el) => el.textContent)
+    expect(prices[0]).toBe('10,000.00')
+  })
+
   it('adds a price via the dialog (cents conversion + currency)', async () => {
     listMock.mockResolvedValue([])
     createMock.mockResolvedValue(price())
