@@ -27,25 +27,41 @@ type DETaxSummary struct {
 	Year                   int
 	Rows                   []DETaxRow
 	TaxableGainCents       int64 // sum of short-term gains only
-	FreigrenzeCents        int64 // always 60_000 (€600)
+	FreigrenzeCents        int64 // €600 through 2023, €1,000 from 2024 (year-dependent)
 	FreigreifenGilt        bool  // true if total taxable gain <= €600
 	NetTaxableCents        int64 // 0 if Freigrenze applies, else TaxableGainCents
 }
 
+// deFreigrenzeCents returns the §23 EStG Freigrenze for the given calendar year.
+// €600 through 2023; raised to €1,000 from 2024 by the Wachstumschancengesetz.
+func deFreigrenzeCents(year int) int64 {
+	if year >= 2024 {
+		return 100_000 // €1,000
+	}
+	return 60_000 // €600
+}
+
 // BuildDESummary filters and computes all §23 EStG figures for the given calendar year.
+//
+// Short-term (non-tax-free) disposals are netted together: losses offset gains
+// within the same type, as §23 permits. If the resulting net gain is at or below
+// the year's Freigrenze it is fully exempt (all-or-nothing); a net loss yields a
+// taxable amount of zero (loss carry-forward is out of scope here).
 func BuildDESummary(year int, rows []DETaxRow) DETaxSummary {
-	const freigrenzeCents = 60_000 // €600
+	freigrenzeCents := deFreigrenzeCents(year)
 
 	var taxable int64
 	for _, r := range rows {
-		if !r.TaxFree && r.GainFiat > 0 {
-			taxable += r.GainFiat
+		if !r.TaxFree {
+			taxable += r.GainFiat // includes negative gains (losses) → offsetting
 		}
 	}
 
-	greift := taxable <= freigrenzeCents
+	// Freigrenze applies (exemption kicks in) only for a positive net gain at or
+	// below the threshold. A net loss is simply not taxable.
+	greift := taxable > 0 && taxable <= freigrenzeCents
 	net := taxable
-	if greift {
+	if net <= freigrenzeCents {
 		net = 0
 	}
 
