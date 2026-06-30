@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -180,7 +181,7 @@ func (b *Backend) GetTransactions(ctx context.Context, address string) ([]btcsyn
 			}
 			rec.Outputs = append(rec.Outputs, btcsync.TxOutput{
 				Vout:    vout.N,
-				Sats:    btcAmountToSats(vout.Value),
+				Sats:    btcStringToSats(vout.Value),
 				Address: addr,
 			})
 		}
@@ -304,8 +305,41 @@ func decodeBase58Check(addr string) ([]byte, error) {
 	return decoded[1:21], nil
 }
 
-func btcAmountToSats(btc float64) int64 {
-	return int64(btc * 1e8)
+// btcStringToSats converts a decimal BTC amount (as the raw JSON number string,
+// e.g. "0.29") to satoshis exactly, avoiding float rounding. The old float path
+// `int64(btc * 1e8)` truncates — 0.29 BTC became 28999999, losing a satoshi.
+func btcStringToSats(v json.Number) int64 {
+	s := string(v)
+	if s == "" {
+		return 0
+	}
+	neg := false
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = s[1:]
+	}
+	intPart, fracPart, _ := strings.Cut(s, ".")
+	// Normalise the fractional part to exactly 8 digits (satoshi precision).
+	if len(fracPart) > 8 {
+		fracPart = fracPart[:8]
+	}
+	for len(fracPart) < 8 {
+		fracPart += "0"
+	}
+
+	var sats int64
+	if intPart != "" {
+		if n, err := strconv.ParseInt(intPart, 10, 64); err == nil {
+			sats = n * 100_000_000
+		}
+	}
+	if f, err := strconv.ParseInt(fracPart, 10, 64); err == nil {
+		sats += f
+	}
+	if neg {
+		sats = -sats
+	}
+	return sats
 }
 
 func min(a, b int) int {
@@ -330,7 +364,7 @@ type electrumVin struct {
 }
 
 type electrumVout struct {
-	Value       float64            `json:"value"`
+	Value       json.Number       `json:"value"`
 	N           int                `json:"n"`
 	ScriptPubKey electrumScriptKey `json:"scriptPubKey"`
 }
