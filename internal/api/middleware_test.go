@@ -59,10 +59,72 @@ func TestTokenAuth_HealthAndVersionExempt(t *testing.T) {
 	}
 }
 
+func TestTokenAuth_ExemptionIsExactNotSuffix(t *testing.T) {
+	// A route merely ending in "/health" must still require auth.
+	h := tokenAuth("s3cret")(okHandler())
+	if rec := doReq(h, "GET", "/api/v1/wallets/health", ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("/wallets/health must not bypass auth, got %d", rec.Code)
+	}
+}
+
+// --- clientIP ----------------------------------------------------------------
+
+func TestClientIP_IgnoresProxyHeadersByDefault(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/wallets", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	if got := clientIP(req, false); got != "10.0.0.1" {
+		t.Errorf("without trustProxy got %q, want peer 10.0.0.1", got)
+	}
+}
+
+func TestClientIP_UsesForwardedForWhenTrusted(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/wallets", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4, 10.0.0.9")
+	if got := clientIP(req, true); got != "1.2.3.4" {
+		t.Errorf("with trustProxy got %q, want original client 1.2.3.4", got)
+	}
+}
+
+func TestClientIP_FallsBackToRealIPThenPeer(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/wallets", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	req.Header.Set("X-Real-IP", "5.6.7.8")
+	if got := clientIP(req, true); got != "5.6.7.8" {
+		t.Errorf("X-Real-IP fallback got %q, want 5.6.7.8", got)
+	}
+	req2 := httptest.NewRequest("GET", "/api/v1/wallets", nil)
+	req2.RemoteAddr = "10.0.0.1:1234"
+	if got := clientIP(req2, true); got != "10.0.0.1" {
+		t.Errorf("no proxy headers got %q, want peer 10.0.0.1", got)
+	}
+}
+
+func TestRateLimiter_SpoofedHeaderSharesBucketWithoutProxy(t *testing.T) {
+	// Without trustProxy, two requests from the same peer but different
+	// X-Forwarded-For values must share one bucket (no spoofed evasion).
+	h := rateLimiter(1, false)(okHandler())
+	mk := func(xff string) int {
+		req := httptest.NewRequest("GET", "/api/v1/wallets", nil)
+		req.RemoteAddr = "10.0.0.1:1234"
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if c := mk("1.1.1.1"); c != http.StatusOK {
+		t.Fatalf("first request got %d, want 200", c)
+	}
+	if c := mk("2.2.2.2"); c != http.StatusTooManyRequests {
+		t.Fatalf("spoofed-XFF second request should still be rate-limited, got %d", c)
+	}
+}
+
 // --- rateLimiter -------------------------------------------------------------
 
 func TestRateLimiter_DisabledWhenZero(t *testing.T) {
-	h := rateLimiter(0)(okHandler())
+	h := rateLimiter(0, false)(okHandler())
 	for i := 0; i < 50; i++ {
 		if rec := doReq(h, "GET", "/api/v1/wallets", ""); rec.Code != http.StatusOK {
 			t.Fatalf("disabled limiter should always pass, got %d on req %d", rec.Code, i)
@@ -71,7 +133,7 @@ func TestRateLimiter_DisabledWhenZero(t *testing.T) {
 }
 
 func TestRateLimiter_AllowsUpToLimitThen429(t *testing.T) {
-	h := rateLimiter(3)(okHandler())
+	h := rateLimiter(3, false)(okHandler())
 	for i := 1; i <= 3; i++ {
 		if rec := doReq(h, "GET", "/api/v1/wallets", ""); rec.Code != http.StatusOK {
 			t.Fatalf("request %d should be allowed, got %d", i, rec.Code)
@@ -90,7 +152,7 @@ func TestRateLimiter_AllowsUpToLimitThen429(t *testing.T) {
 }
 
 func TestRateLimiter_PerIPIsolation(t *testing.T) {
-	h := rateLimiter(1)(okHandler())
+	h := rateLimiter(1, false)(okHandler())
 	// First IP uses its single allowance.
 	req1 := httptest.NewRequest("GET", "/api/v1/wallets", nil)
 	req1.RemoteAddr = "10.0.0.1:1111"

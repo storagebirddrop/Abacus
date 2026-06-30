@@ -20,7 +20,7 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		r.Use(jsonContentType)
 		// Rate limit first (cheap reject), then optional bearer auth. Both are
 		// no-ops unless configured; health/version stay reachable for probes.
-		r.Use(rateLimiter(sec.RateLimitRPM))
+		r.Use(rateLimiter(sec.RateLimitRPM, sec.TrustProxy))
 		r.Use(tokenAuth(sec.APIToken))
 		r.Get("/health", handleHealth(version))
 		r.Get("/version", handleVersion(version))
