@@ -8,6 +8,7 @@ function mockFetch(impl: typeof fetch) {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  localStorage.clear()
 })
 
 describe('apiFetch', () => {
@@ -44,6 +45,21 @@ describe('apiFetch', () => {
       status: 500,
       message: 'HTTP 500',
     })
+  })
+
+  it('attaches a bearer token when one is stored', async () => {
+    localStorage.setItem('abacus-api-token', 's3cret')
+    mockFetch(async () => new Response('{}', { status: 200 }))
+    await apiFetch('/wallets')
+    const init = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
+    expect(init.headers['Authorization']).toBe('Bearer s3cret')
+  })
+
+  it('omits the Authorization header when no token is stored', async () => {
+    mockFetch(async () => new Response('{}', { status: 200 }))
+    await apiFetch('/wallets')
+    const init = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1]
+    expect(init.headers['Authorization']).toBeUndefined()
   })
 
   it('does not force an application/json content-type for FormData uploads', async () => {
