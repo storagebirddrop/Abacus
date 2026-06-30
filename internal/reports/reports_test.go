@@ -169,27 +169,36 @@ func TestWriteTaxNLCSV_UnknownPrice(t *testing.T) {
 // --- Germany §23 EStG --------------------------------------------------------
 
 func TestBuildDESummary_FreigrenzeBoundary(t *testing.T) {
-	// Exactly at the €600 Freigrenze → whole amount exempt (all-or-nothing).
-	at := BuildDESummary(2024, []DETaxRow{
-		{GainFiat: 60_000, HoldingDays: 100, TaxFree: false},
-	})
-	if !at.FreigreifenGilt || at.NetTaxableCents != 0 {
-		t.Errorf("at €600: greift=%v net=%d, want greift=true net=0", at.FreigreifenGilt, at.NetTaxableCents)
+	// The Freigrenze is year-dependent: €600 through 2023, €1,000 from 2024.
+	cases := []struct {
+		name        string
+		year        int
+		gain        int64
+		wantGreift  bool
+		wantNet     int64
+	}{
+		{"2023 exactly at €600 → exempt", 2023, 60_000, true, 0},
+		{"2023 one cent over €600 → taxable", 2023, 60_001, false, 60_001},
+		{"2024 €600 now below €1,000 → exempt", 2024, 60_000, true, 0},
+		{"2024 exactly at €1,000 → exempt", 2024, 100_000, true, 0},
+		{"2024 one cent over €1,000 → taxable", 2024, 100_001, false, 100_001},
 	}
-
-	// One cent over → Freigrenze does NOT apply, full amount taxable.
-	over := BuildDESummary(2024, []DETaxRow{
-		{GainFiat: 60_001, HoldingDays: 100, TaxFree: false},
-	})
-	if over.FreigreifenGilt || over.NetTaxableCents != 60_001 {
-		t.Errorf("over €600: greift=%v net=%d, want greift=false net=60001", over.FreigreifenGilt, over.NetTaxableCents)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := BuildDESummary(c.year, []DETaxRow{{GainFiat: c.gain, HoldingDays: 100}})
+			if s.FreigreifenGilt != c.wantGreift || s.NetTaxableCents != c.wantNet {
+				t.Errorf("greift=%v net=%d, want greift=%v net=%d",
+					s.FreigreifenGilt, s.NetTaxableCents, c.wantGreift, c.wantNet)
+			}
+		})
 	}
 }
 
 func TestBuildDESummary_TaxFreeExcluded(t *testing.T) {
 	// A long-held (tax-free) row with a huge gain must not count toward the
-	// taxable total; only the short-term row does.
-	s := BuildDESummary(2024, []DETaxRow{
+	// taxable total; only the short-term row does. Use 2023 + a gain above the
+	// €600 threshold so it remains taxable.
+	s := BuildDESummary(2023, []DETaxRow{
 		{GainFiat: 5_000_000, HoldingDays: 800, TaxFree: true}, // excluded
 		{GainFiat: 70_000, HoldingDays: 30, TaxFree: false},    // counted, > €600
 	})
@@ -201,16 +210,33 @@ func TestBuildDESummary_TaxFreeExcluded(t *testing.T) {
 	}
 }
 
-func TestBuildDESummary_LossesNotCounted(t *testing.T) {
-	// Documents current behaviour: negative (loss) rows are not summed into the
-	// taxable gain. NOTE: §23 actually permits offsetting losses within the same
-	// type — flagged for product review, asserting present behaviour here.
+func TestBuildDESummary_LossesOffsetGains(t *testing.T) {
+	// §23 permits offsetting losses against gains within the same type.
+	// 2024 threshold is €1,000; net 160_000 (€1,600) stays taxable.
 	s := BuildDESummary(2024, []DETaxRow{
-		{GainFiat: 100_000, HoldingDays: 10, TaxFree: false},
+		{GainFiat: 200_000, HoldingDays: 10, TaxFree: false},
 		{GainFiat: -40_000, HoldingDays: 10, TaxFree: false},
 	})
-	if s.TaxableGainCents != 100_000 {
-		t.Errorf("TaxableGainCents = %d, want 100000 (loss ignored under current logic)", s.TaxableGainCents)
+	if s.TaxableGainCents != 160_000 {
+		t.Errorf("TaxableGainCents = %d, want 160000 (loss offsets gain)", s.TaxableGainCents)
+	}
+	if s.NetTaxableCents != 160_000 {
+		t.Errorf("NetTaxableCents = %d, want 160000", s.NetTaxableCents)
+	}
+}
+
+func TestBuildDESummary_NetLossNotTaxable(t *testing.T) {
+	// A net loss across short-term disposals yields zero taxable, and the
+	// Freigrenze is not reported as "applying" (it's a loss, not an exemption).
+	s := BuildDESummary(2024, []DETaxRow{
+		{GainFiat: 30_000, HoldingDays: 10, TaxFree: false},
+		{GainFiat: -90_000, HoldingDays: 10, TaxFree: false},
+	})
+	if s.TaxableGainCents != -60_000 {
+		t.Errorf("TaxableGainCents = %d, want -60000", s.TaxableGainCents)
+	}
+	if s.NetTaxableCents != 0 || s.FreigreifenGilt {
+		t.Errorf("net=%d greift=%v, want net=0 greift=false", s.NetTaxableCents, s.FreigreifenGilt)
 	}
 }
 
