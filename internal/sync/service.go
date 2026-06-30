@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -13,6 +14,10 @@ import (
 )
 
 const gapLimit = 20
+
+// syncTimeout bounds a single background sync so a wedged backend cannot keep a
+// goroutine (and DB work) alive indefinitely.
+const syncTimeout = 30 * time.Minute
 
 // Interfaces for the repos the sync service needs.
 
@@ -54,6 +59,7 @@ type BackendFactory func(ctx context.Context) (BlockchainBackend, error)
 
 // Service orchestrates blockchain sync for a wallet.
 type Service struct {
+	baseCtx        context.Context
 	db             Storer
 	walletRepo     walletRepo
 	txRepo         txRepo
@@ -64,7 +70,12 @@ type Service struct {
 	backendFactory BackendFactory
 }
 
+// NewService builds the sync service. baseCtx is the application's root context;
+// background sync goroutines derive their context from it, so cancelling baseCtx
+// (e.g. on server shutdown) propagates to in-flight syncs. If nil, it defaults
+// to context.Background().
 func NewService(
+	baseCtx context.Context,
 	db Storer,
 	walletRepo walletRepo,
 	txRepo txRepo,
@@ -74,7 +85,11 @@ func NewService(
 	syncStateRepo syncStateRepo,
 	backendFactory BackendFactory,
 ) *Service {
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
 	return &Service{
+		baseCtx:        baseCtx,
 		db:             db,
 		walletRepo:     walletRepo,
 		txRepo:         txRepo,
@@ -114,15 +129,23 @@ func (s *Service) StartSync(ctx context.Context, walletID string) (string, error
 		return "", fmt.Errorf("create sync job: %w", err)
 	}
 
-	// Run sync asynchronously.
+	// Run sync asynchronously, derived from the app's root context (so shutdown
+	// cancels it) and bounded by syncTimeout (so a wedged backend cannot leak it).
 	go func() {
-		bgCtx := context.Background()
-		if err := s.runSync(bgCtx, wallet, job, backend); err != nil {
+		runCtx, cancel := context.WithTimeout(s.baseCtx, syncTimeout)
+		defer cancel()
+		if err := s.runSync(runCtx, wallet, job, backend); err != nil {
 			fin := time.Now().UTC()
 			job.Status = "failed"
 			job.ErrorMsg = err.Error()
 			job.FinishedAt = &fin
-			_ = s.syncJobRepo.Update(bgCtx, job)
+			// Persist the failure even if runCtx was cancelled/timed out, using a
+			// fresh short-lived context so the job never sticks in "running".
+			updCtx, c := context.WithTimeout(context.WithoutCancel(runCtx), 5*time.Second)
+			defer c()
+			if uerr := s.syncJobRepo.Update(updCtx, job); uerr != nil {
+				log.Printf("sync job %s failed (%v); status update also failed: %v", job.ID, err, uerr)
+			}
 		}
 	}()
 
@@ -190,8 +213,12 @@ func (s *Service) runSync(ctx context.Context, wallet *domain.Wallet, job *domai
 	}
 	job.AddressesScanned = rScanned + cScanned
 
-	// Get current block height.
-	height, _ := backend.BlockHeight(ctx)
+	// Get current block height (best-effort; a failure here is non-fatal and
+	// simply leaves the recorded height at 0 rather than aborting the sync).
+	height, herr := backend.BlockHeight(ctx)
+	if herr != nil {
+		log.Printf("sync %s: block height fetch failed: %v", wallet.ID, herr)
+	}
 
 	// Convert TxRecords to domain types.
 	txSlice := make([]domain.Transaction, 0, len(txByID))
