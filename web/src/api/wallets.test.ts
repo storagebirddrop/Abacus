@@ -42,9 +42,16 @@ describe('wallets API contract', () => {
     expect(mock).toHaveBeenCalledWith('/wallets/w1', { method: 'DELETE' })
   })
 
-  it('listTransactions encodes pagination params', () => {
-    listTransactions('w1', 50, 100)
-    expect(mock).toHaveBeenCalledWith('/wallets/w1/transactions?limit=50&offset=100')
+  it('listTransactions encodes pagination params with defaults', () => {
+    listTransactions('w1')
+    expect(mock).toHaveBeenCalledWith('/wallets/w1/transactions?page=1&limit=50')
+  })
+
+  it('listTransactions encodes search, status, sort and direction', () => {
+    listTransactions('w1', { page: 2, limit: 25, search: 'abc', status: 'pending', sort: 'fee', dir: 'asc' })
+    expect(mock).toHaveBeenCalledWith(
+      '/wallets/w1/transactions?page=2&limit=25&search=abc&status=pending&sort=fee&dir=asc',
+    )
   })
 
   it('importWallet posts FormData and does NOT force a JSON content-type', () => {

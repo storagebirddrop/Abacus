@@ -37,6 +37,9 @@ type stubTxStore struct {
 func (s *stubTxStore) List(_ context.Context, _ string, _, _ int) ([]*domain.Transaction, int, error) {
 	return nil, 0, nil
 }
+func (s *stubTxStore) ListFiltered(_ context.Context, _ string, _ domain.TxFilter) ([]*domain.Transaction, int, error) {
+	return nil, 0, nil
+}
 func (s *stubTxStore) GetByTxid(_ context.Context, _, _ string) (*domain.Transaction, error) {
 	return s.tx, s.err
 }

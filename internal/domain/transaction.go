@@ -14,6 +14,17 @@ type Transaction struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// TxFilter holds the optional search/sort/filter parameters for a paginated
+// transaction listing. Zero values mean "no filter" / sensible defaults.
+type TxFilter struct {
+	Search string // case-insensitive substring match on txid; "" = no search
+	Status string // "confirmed" | "pending"; "" = any
+	Sort   string // "date" (block_time) | "fee" (fee_sats); "" = date
+	Dir    string // "asc" | "desc"; "" = desc
+	Limit  int
+	Offset int
+}
+
 type TransactionInput struct {
 	ID            string `json:"id"`
 	TransactionID string `json:"transaction_id"`

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -99,6 +100,79 @@ func (r *TransactionRepo) List(ctx context.Context, walletID string, limit, offs
 		txs = append(txs, t)
 	}
 	return txs, total, rows.Err()
+}
+
+// ListFiltered returns a paginated, optionally searched/filtered/sorted slice
+// of transactions for a wallet, plus the total count matching the filter
+// (before pagination). Sort and direction are whitelisted, so the dynamic SQL
+// never interpolates user input as column or keyword.
+func (r *TransactionRepo) ListFiltered(ctx context.Context, walletID string, f domain.TxFilter) ([]*domain.Transaction, int, error) {
+	where := "WHERE wallet_id=?"
+	args := []any{walletID}
+
+	if s := strings.TrimSpace(f.Search); s != "" {
+		where += " AND txid LIKE ? ESCAPE '\\'"
+		args = append(args, "%"+escapeLike(strings.ToLower(s))+"%")
+	}
+	switch f.Status {
+	case "confirmed":
+		where += " AND confirmed=1"
+	case "pending":
+		where += " AND confirmed=0"
+	}
+
+	var total int
+	if err := r.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM transactions "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	sortCol := "block_time"
+	if f.Sort == "fee" {
+		sortCol = "fee_sats"
+	}
+	dir := "DESC"
+	if f.Dir == "asc" {
+		dir = "ASC"
+	}
+
+	limit := f.Limit
+	if limit < 1 || limit > 500 {
+		limit = 50
+	}
+	offset := f.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `SELECT id, wallet_id, txid, block_height, block_hash, block_time, fee_sats, confirmed, created_at
+		 FROM transactions ` + where +
+		" ORDER BY " + sortCol + " " + dir + ", created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	var txs []*domain.Transaction
+	for rows.Next() {
+		t, err := scanTransaction(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		txs = append(txs, t)
+	}
+	return txs, total, rows.Err()
+}
+
+// escapeLike escapes the LIKE wildcards so a literal search term containing
+// % or _ matches literally (paired with ESCAPE '\' in the query).
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }
 
 func (r *TransactionRepo) GetByTxid(ctx context.Context, walletID, txid string) (*domain.Transaction, error) {

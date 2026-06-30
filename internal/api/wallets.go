@@ -32,6 +32,7 @@ type walletStore interface {
 
 type txStore interface {
 	List(ctx context.Context, walletID string, limit, offset int) ([]*domain.Transaction, int, error)
+	ListFiltered(ctx context.Context, walletID string, f domain.TxFilter) ([]*domain.Transaction, int, error)
 	GetByTxid(ctx context.Context, walletID, txid string) (*domain.Transaction, error)
 	GetInputsByTransactionID(ctx context.Context, txID string) ([]*domain.TransactionInput, error)
 	GetOutputsByTransactionID(ctx context.Context, txID string) ([]*domain.TransactionOutput, error)
@@ -248,7 +249,28 @@ func (h *WalletHandler) ListTransactions(w http.ResponseWriter, r *http.Request)
 	}
 	offset := (page - 1) * limit
 
-	txs, total, err := h.txs.List(r.Context(), walletID, limit, offset)
+	q := r.URL.Query()
+	status := q.Get("status")
+	if status != "confirmed" && status != "pending" {
+		status = ""
+	}
+	sort := q.Get("sort")
+	if sort != "fee" && sort != "date" {
+		sort = "date"
+	}
+	dir := q.Get("dir")
+	if dir != "asc" && dir != "desc" {
+		dir = "desc"
+	}
+
+	txs, total, err := h.txs.ListFiltered(r.Context(), walletID, domain.TxFilter{
+		Search: q.Get("search"),
+		Status: status,
+		Sort:   sort,
+		Dir:    dir,
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

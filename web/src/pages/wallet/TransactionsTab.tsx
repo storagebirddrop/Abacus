@@ -4,42 +4,107 @@ import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
 import { ExportBar } from './ExportBar'
 
+type SortKey = 'date' | 'fee'
+type StatusFilter = '' | 'confirmed' | 'pending'
+
 export function TransactionsTab({ walletID }: { walletID: string }) {
   const [txs, setTxs] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
-  const [offset, setOffset] = useState(0)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<StatusFilter>('')
+  const [sort, setSort] = useState<SortKey>('date')
+  const [dir, setDir] = useState<'asc' | 'desc'>('desc')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const limit = 50
 
+  // Debounce the search box so typing doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // Any filter/sort change resets to the first page.
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, status, sort, dir])
+
   useEffect(() => {
     setLoading(true)
-    listTransactions(walletID, limit, offset)
+    setError('')
+    listTransactions(walletID, { page, limit, search: debouncedSearch, status, sort, dir })
       .then((data) => {
-        setTxs(data.transactions ?? [])
+        setTxs(data.data ?? [])
         setTotal(data.total ?? 0)
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed'))
       .finally(() => setLoading(false))
-  }, [walletID, offset])
+  }, [walletID, page, debouncedSearch, status, sort, dir])
 
-  if (loading) return <p className="text-slate-500 dark:text-slate-400 p-6">Loading…</p>
-  if (error) return <p className="text-red-500 p-6">{error}</p>
+  function toggleSort(key: SortKey) {
+    if (key === sort) {
+      setDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSort(key)
+      setDir('desc')
+    }
+  }
+
+  const offset = (page - 1) * limit
+  const arrow = (key: SortKey) => (sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : '')
 
   return (
     <div>
       <ExportBar walletID={walletID} report="transactions" />
-      {txs.length === 0 ? (
-        <p className="text-slate-400 p-6">No transactions. Import a wallet file first.</p>
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <input
+          type="search"
+          aria-label="Search transactions by txid"
+          placeholder="Search by txid…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:w-72 border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-slate-900"
+        />
+        <select
+          aria-label="Filter by status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as StatusFilter)}
+          className="border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-slate-900"
+        >
+          <option value="">All statuses</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <p className="text-slate-500 dark:text-slate-400 p-6">Loading…</p>
+      ) : error ? (
+        <p className="text-red-500 p-6">{error}</p>
+      ) : txs.length === 0 ? (
+        <p className="text-slate-400 p-6">
+          {debouncedSearch || status ? 'No transactions match your filters.' : 'No transactions. Import a wallet file first.'}
+        </p>
       ) : (
         <>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
+                    <button className="hover:text-slate-900 dark:hover:text-slate-100" onClick={() => toggleSort('date')}>
+                      Date{arrow('date')}
+                    </button>
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Txid</th>
-                  <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Fee (sats)</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
+                    <button className="hover:text-slate-900 dark:hover:text-slate-100" onClick={() => toggleSort('fee')}>
+                      Fee (sats){arrow('fee')}
+                    </button>
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
                 </tr>
               </thead>
@@ -67,11 +132,11 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
             </table>
           </div>
           <div className="flex items-center gap-4 mt-4 text-sm text-slate-500 dark:text-slate-400">
-            <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset((o) => Math.max(0, o - limit))}>
+            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
               Previous
             </Button>
             <span>Showing {offset + 1}–{Math.min(offset + limit, total)} of {total}</span>
-            <Button variant="outline" size="sm" disabled={offset + limit >= total} onClick={() => setOffset((o) => o + limit)}>
+            <Button variant="outline" size="sm" disabled={offset + limit >= total} onClick={() => setPage((p) => p + 1)}>
               Next
             </Button>
           </div>
