@@ -30,6 +30,17 @@ WORKDIR /app
 
 COPY --from=builder /app/abacus .
 
+# Run as a non-root user. Pre-create the data dir owned by that user so a
+# bind/named volume mounted there inherits writable ownership on first use.
+RUN adduser -D -H -u 10001 abacus \
+    && mkdir -p /app/data \
+    && chown -R abacus:abacus /app
+USER abacus
+
 EXPOSE 8080
+
+# Liveness probe against the unauthenticated health endpoint (busybox wget).
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/api/v1/health || exit 1
 
 CMD ["./abacus"]
