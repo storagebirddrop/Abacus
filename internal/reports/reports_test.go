@@ -177,10 +177,12 @@ func TestBuildDESummary_FreigrenzeBoundary(t *testing.T) {
 		wantGreift  bool
 		wantNet     int64
 	}{
-		{"2023 exactly at €600 → exempt", 2023, 60_000, true, 0},
+		{"2023 one cent under €600 → exempt", 2023, 59_999, true, 0},
+		{"2023 exactly at €600 → taxable (weniger als)", 2023, 60_000, false, 60_000},
 		{"2023 one cent over €600 → taxable", 2023, 60_001, false, 60_001},
 		{"2024 €600 now below €1,000 → exempt", 2024, 60_000, true, 0},
-		{"2024 exactly at €1,000 → exempt", 2024, 100_000, true, 0},
+		{"2024 one cent under €1,000 → exempt", 2024, 99_999, true, 0},
+		{"2024 exactly at €1,000 → taxable (weniger als)", 2024, 100_000, false, 100_000},
 		{"2024 one cent over €1,000 → taxable", 2024, 100_001, false, 100_001},
 	}
 	for _, c := range cases {
