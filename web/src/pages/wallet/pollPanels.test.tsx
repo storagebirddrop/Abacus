@@ -49,7 +49,6 @@ describe('ImportTab polling', () => {
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(fileInput, { target: { files: [new File(['{}'], 'w.json')] } })
-    fireEvent.submit(fileInput.closest('form')!)
 
     await advance(0) // importWallet resolves → "Job started", poll armed
     expect(screen.getByText(/Job started/i)).toBeInTheDocument()

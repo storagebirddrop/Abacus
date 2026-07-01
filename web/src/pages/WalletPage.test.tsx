@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Wallet, Transaction, ImportJob } from '../api/wallets'
@@ -141,9 +141,6 @@ describe('WalletPage', () => {
     const file = new File(['{}'], 'wallet.json', { type: 'application/json' })
     await userEvent.upload(fileInput, file)
     expect(fileInput.files?.[0]).toBe(file)
-
-    // Submit the form directly (both the tab and submit button read "Import").
-    fireEvent.submit(fileInput.closest('form')!)
 
     await waitFor(() => expect(m.importWallet).toHaveBeenCalledWith('w1', file))
     expect(await screen.findByText(/Job started/i)).toBeInTheDocument()
