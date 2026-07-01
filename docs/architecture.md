@@ -40,9 +40,9 @@
 │   Importer    │          │     Sync Layer      │
 │    Layer      │          │  address derivation │
 │  Sparrow/     │          │  + blockchain fetch │
-│  Nunchuk/     │          │  Esplora/Electrum/  │
-│  Coldcard/    │          │  Bitcoin Core       │
-│  Specter/     │          └─────────────────────┘
+│  Nunchuk/     │          │  Esplora/Electrum   │
+│  Coldcard/    │          └─────────────────────┘
+│  Specter/     │
 │  Electrum/    │
 │  BIP329/BSMS  │
 └────────┬──────┘
@@ -68,7 +68,7 @@
 - Derives addresses from output descriptor (wpkh, sh(wpkh), pkh)
 - Fetches transaction history per address from a blockchain backend
 - Gap limit 20 — stops scanning when 20 consecutive addresses have no history
-- Backends: Esplora REST (default: mempool.space), Electrum TCP, Bitcoin Core RPC
+- Backends: Esplora REST (default: mempool.space), Electrum TCP
 - Writes through the same ledger pipeline as file importers
 
 ### Normalization Layer
