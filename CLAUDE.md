@@ -74,7 +74,7 @@ internal/sync/              blockchain sync layer
   esplora/                  Esplora REST backend (Mempool.space)
   electrum/                 Electrum JSON-RPC TCP backend
   bitcoincore/              Bitcoin Core JSON-RPC backend
-internal/config/            config from env vars
+internal/config/            config from env vars (version is NOT here — baked in via ldflags)
 migrations/                 numbered SQL migration files
 embed.go                    go:embed — bundles web/dist + migrations into binary
 packaging/appimage/         AppImage assets (AppRun, .desktop, icon)

@@ -166,8 +166,9 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Backlog 7 — Linux AppImage packaging + GitHub Release CI | ✅ |
 | Settings — UI-driven blockchain sync config (opt-in, runtime-configurable) | ✅ |
 | Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, dark mode + a11y | ✅ |
-| Manual — push `v1.0.0` tag to trigger the signed AppImage release (requires local git or GitHub UI; CI token lacks `Contents: write`) | ⏳ |
-| Manual — delete merged remote branches (run `git push origin --delete <branches>` locally, or enable auto-delete in repo settings) | ⏳ |
+| Version baked into binary at build time via ldflags | ✅ |
+| Remote branch cleanup | ✅ |
+| `v0.1.0` AppImage release — push tag locally to trigger signed release workflow | ⏳ |
 
 ## License
 

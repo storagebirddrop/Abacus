@@ -7,7 +7,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Everything built so far lives here until the first tagged release (`v1.0.0`).
+_No unreleased changes at this time._
+
+## [0.1.0] - 2026-07-01
+
+First tagged release. All phases (0–7) and two rounds of independent audit
+remediation are included.
 
 ### Added
 - Wallet importers: Sparrow, Nunchuk, Coldcard, Specter, Electrum, and a generic
@@ -35,6 +40,9 @@ Everything built so far lives here until the first tagged release (`v1.0.0`).
 ### Changed
 - Germany §23 EStG: year-dependent Freigrenze (€1,000 from 2024) and loss
   offsetting within the year.
+- Version is now baked into the binary at build time via
+  `-ldflags "-X main.version=<tag>"` rather than read from a runtime env var;
+  untagged/dev builds report `dev`.
 
 ### Fixed
 - Average-cost precision loss (multiply-before-divide).
@@ -50,4 +58,5 @@ Everything built so far lives here until the first tagged release (`v1.0.0`).
   the auth health/version exemption is an exact path match.
 - Import uploads bounded (413 over the 32 MiB cap) to prevent memory exhaustion.
 
-[Unreleased]: https://github.com/storagebirddrop/Abacus/commits/main
+[Unreleased]: https://github.com/storagebirddrop/Abacus/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/storagebirddrop/Abacus/releases/tag/v0.1.0
