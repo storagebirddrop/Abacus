@@ -5,7 +5,6 @@ import {
   listImportJobs,
   type ImportJob,
 } from '../../api/wallets'
-import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
 import { usePoll } from '../../hooks/usePoll'
 
@@ -15,6 +14,7 @@ export function ImportTab({ walletID }: { walletID: string }) {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const poll = usePoll()
 
@@ -27,10 +27,7 @@ export function ImportTab({ walletID }: { walletID: string }) {
       )
   }, [walletID])
 
-  async function handleUpload(e: React.FormEvent) {
-    e.preventDefault()
-    const file = fileRef.current?.files?.[0]
-    if (!file) return
+  async function upload(file: File) {
     setUploading(true)
     setError('')
     setStatus('Uploading…')
@@ -55,33 +52,77 @@ export function ImportTab({ walletID }: { walletID: string }) {
     }
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) upload(file)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) upload(file)
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
   return (
     <div className="space-y-6">
       {loadError && (
         <p role="alert" className="text-sm text-red-500">{loadError}</p>
       )}
-      <form onSubmit={handleUpload} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Upload wallet export</label>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
             Supported formats: Sparrow (JSON, CSV, BIP329 .jsonl) · Nunchuk (JSON, BSMS, BIP329 .jsonl) ·
             Coldcard (coldcard-export.json) · Specter Desktop (JSON descriptor export) ·
             Electrum (JSON wallet export, unencrypted only) · Generic JSON with descriptor field (Jade, Passport, SeedSigner, etc.)
           </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json,.csv,.bsms,.jsonl"
-            className="text-sm"
-            required
-          />
+
+          {/* Drop zone */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => !uploading && fileRef.current?.click()}
+            className={cn(
+              'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center cursor-pointer transition-colors',
+              dragOver
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500',
+              uploading && 'pointer-events-none opacity-60',
+            )}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span className="text-sm text-slate-600 dark:text-slate-300">
+              {dragOver ? 'Drop to import' : 'Drag & drop a file here, or click to browse'}
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,.csv,.bsms,.jsonl"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+          </div>
         </div>
+
         {status && <p className="text-sm text-slate-600 dark:text-slate-300">{status}</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <Button type="submit" disabled={uploading}>
-          {uploading ? 'Importing…' : 'Import'}
-        </Button>
-      </form>
+      </div>
 
       {jobs.length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
