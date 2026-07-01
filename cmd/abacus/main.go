@@ -28,6 +28,10 @@ import (
 	"github.com/storagebirddrop/abacus/internal/sync/esplora"
 )
 
+// version is set at build time via -ldflags "-X main.version=<tag>".
+// Falls back to "dev" when built without a tag (e.g. `go run`).
+var version = "dev"
+
 func main() {
 	cfg := config.Load()
 
@@ -153,13 +157,13 @@ func main() {
 	if sec.TrustProxy {
 		log.Println("Trusting X-Forwarded-For/X-Real-IP for client IP (reverse-proxy mode)")
 	}
-	router := api.NewRouter(cfg.Version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS, sec)
+	router := api.NewRouter(version, walletHandler, accountingHandler, reportHandler, syncHandler, ledgerHandler, portfolioHandler, settingsHandler, frontendFS, sec)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	srv := &http.Server{Addr: addr, Handler: router}
 
 	go func() {
-		log.Printf("Abacus %s starting on %s", cfg.Version, addr)
+		log.Printf("Abacus %s starting on %s", version, addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
