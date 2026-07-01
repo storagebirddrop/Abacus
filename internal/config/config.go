@@ -9,7 +9,6 @@ type Config struct {
 	Port        string
 	DBPath      string
 	Env         string
-	Version     string
 	FrontendDir string
 
 	// Security
@@ -23,7 +22,6 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8080"),
 		DBPath:      getEnv("DB_PATH", "./abacus.db"),
 		Env:         getEnv("ENV", "production"),
-		Version:     getEnv("VERSION", "0.1.0"),
 		FrontendDir: getEnv("FRONTEND_DIR", "./web/dist"),
 
 		APIToken:     getEnv("API_TOKEN", ""),
