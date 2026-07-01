@@ -123,6 +123,25 @@ make appimage               full AppImage in dist/ (requires appimagetool)
 make clean                  remove dist/ and Abacus.AppDir
 ```
 
+## Git Workflow
+
+- **Never commit directly to `main`.** Always create a feature branch off the
+  latest `main`, push it, and open a PR — even for docs-only changes.
+- Wait for CI (`.github/workflows/ci.yml`) to go green, then **squash-merge**
+  the PR (commit title: the PR title with ` (#N)` appended).
+- After merging, sync local `main` and drop the branch:
+  ```bash
+  git checkout main
+  git fetch origin main
+  git reset --hard origin/main
+  git branch -D <feature-branch>
+  ```
+- **Tag pushes and remote branch deletion return 403 from CI/automated
+  tooling** (the CI token lacks those permissions). Cutting a release tag
+  (`git tag vX.Y.Z && git push origin vX.Y.Z`) and pruning merged remote
+  branches (`git push origin --delete <branch>`) must be done from a local
+  machine with a personal git credential — not from an automated session.
+
 ## Binary embedding
 
 `embed.go` at the module root uses `go:embed` to bundle `web/dist` (frontend) and `migrations/` into the compiled binary. This means the released binary and AppImage are fully self-contained — no separate asset directories needed at runtime.
