@@ -50,7 +50,10 @@ total coverage below it fails CI, so add tests alongside new code.
   `JournalEntry`.
 - **No private data** — never store keys, seeds, or signing material; never parse
   `.mv.db`.
-- **Branches:** work on a feature branch; open a PR against `main`.
+- **Branches:** never commit directly to `main`. Work on a feature branch, open
+  a PR, wait for CI to go green, then squash-merge. Full workflow (including
+  why tag pushes and remote branch deletion need a local machine) is in
+  [`CLAUDE.md`](CLAUDE.md) → Git Workflow.
 - **Commits:** conventional-commit style prefixes are used (`feat:`, `fix:`,
   `test:`, `docs:`, `chore:`, `ci:`). Keep commits focused.
 - **Tests:** add/extend tests with behaviour changes. Pure functions
