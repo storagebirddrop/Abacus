@@ -22,7 +22,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 - Builds an **immutable ledger** from your transaction history
 - Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
-- Syncs transaction history live via **Esplora, Electrum, or Bitcoin Core** — opt-in, configured via the Settings page
+- Syncs transaction history live via **Esplora or Electrum** — opt-in, configured via the Settings page
 - Generates **tax reports** for the Netherlands (Box 3), Germany (§23 EStG), United Kingdom (HMRC CGT / Section 104), and United States (IRS Form 8949)
 - Generates **generic reports** (balance sheet, P&L, CSV/PDF/Excel)
 - Provides a **REST API** for all accounting data
@@ -90,7 +90,7 @@ Open http://localhost:8080
 
 1. Export your wallet data from your wallet app
 2. Open Abacus → Wallets → Import
-3. Upload the file — Abacus detects the format automatically
+3. Drag and drop a file onto the drop zone, or click to browse — Abacus detects the format automatically
 
 **Supported formats:**
 - Sparrow JSON wallet export, transaction CSV
@@ -105,7 +105,7 @@ Open http://localhost:8080
 ## Architecture
 
 ```
-Blockchain (Esplora / Electrum / Bitcoin Core)
+Blockchain (Esplora / Electrum)
     ↓
 Sync Layer (address derivation → tx fetch → persist)
     ↓
@@ -159,7 +159,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Phase 4 — Dashboard (React / Vite) | ✅ |
 | Phase 5 — Reports (PDF / Excel / CSV) | ✅ |
 | Phase 6 — Extended wallet importers (Coldcard, Specter, Electrum, generic) | ✅ |
-| Phase 7 — Blockchain sync (Esplora / Electrum / Bitcoin Core) | ✅ |
+| Phase 7 — Blockchain sync (Esplora / Electrum) | ✅ |
 | Backlog 1 — Ledger & UTXO endpoints | ✅ |
 | Backlog 5 — Jurisdiction tax reports (NL / DE / UK / US) + LIFO / HIFO / Section 104 | ✅ |
 | Backlog 6 — BIP329 label export + `POST /labels` | ✅ |
@@ -168,7 +168,9 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, dark mode + a11y | ✅ |
 | Version baked into binary at build time via ldflags | ✅ |
 | Remote branch cleanup | ✅ |
-| `v0.1.0` AppImage release — push tag locally to trigger signed release workflow | ⏳ |
+| `v0.1.0` AppImage release | ✅ |
+| Drag-and-drop import zone in the UI | ✅ |
+| Bitcoin Core sync backend | 🔲 |
 
 ## License
 

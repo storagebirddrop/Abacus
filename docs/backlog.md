@@ -37,6 +37,10 @@ items are listed below.
 - [ ] **Opportunities** — portfolio dashboard with charts, journal diff/audit
   viewer over the immutable ledger.
 - [ ] **Cross-platform release** — Docker image publish, Windows/macOS, arm64.
+- [ ] **Bitcoin Core sync backend** — `blockchain_backend: bitcoincore` is listed
+  in the architecture but was never implemented. Add `internal/sync/bitcoincore/`
+  with a JSON-RPC client (`getaddresstxids` / `scantxoutset`) and wire it into
+  `main.go` and `settings.go`.
 
 ## Manual / requires maintainer action
 - [ ] **`v0.1.0` AppImage release** — push the `v0.1.0` tag from a local machine;
@@ -98,7 +102,8 @@ items are listed below.
 - [x] **Version wiring** — `var version = "dev"` in `main.go`; ldflags
   `-X main.version=<tag>` now bakes the version into the binary (PR #71).
 - [x] **Remote branch cleanup** — all 52 merged/closed stale branches deleted.
-- [x] **`v0.1.0` tag** — pending local push to trigger signed AppImage release.
+- [x] **`v0.1.0` release** — tag pushed, signed AppImage published on GitHub Releases.
+- [x] **Drag-and-drop import** — drop zone added to Import tab; upload starts on drop.
 
 ---
 

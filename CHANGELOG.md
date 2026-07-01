@@ -7,7 +7,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_No unreleased changes at this time._
+### Added
+- Drag-and-drop import zone in the Import tab — drop a wallet export file directly
+  onto the drop zone (or click to browse); upload starts immediately on file selection.
 
 ## [0.1.0] - 2026-07-01
 
