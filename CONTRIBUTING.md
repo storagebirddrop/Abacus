@@ -33,8 +33,15 @@ npm test               # vitest
 npm run build
 ```
 
+> **Toolchain note:** `go.mod` declares `go 1.26.1`. `golangci-lint`/`gosec`
+> built against an older Go will refuse to analyze the module, so they are not
+> wired into CI yet — `go vet` is the lint gate for now. Use a matching Go
+> toolchain locally.
+
 CI (`.github/workflows/ci.yml`) runs the Go build/vet/test (+race), the frontend
-lint/test/build, and a Docker build. **All must pass before merge.**
+lint/test/build, and a Docker build. **All must pass before merge.** The Go job
+also enforces a **test-coverage floor** (currently 25%); a change that drops
+total coverage below it fails CI, so add tests alongside new code.
 
 ## Conventions
 
