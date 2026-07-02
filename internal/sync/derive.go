@@ -46,7 +46,7 @@ func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (rec
 		if len(snip) > 40 {
 			snip = snip[:40]
 		}
-		return nil, nil, fmt.Errorf("unsupported descriptor (multisig requires Phase 7+): %s", snip)
+		return nil, nil, fmt.Errorf("unsupported descriptor: blockchain sync only derives addresses from single-sig wpkh/sh(wpkh)/pkh descriptors; multisig is not yet supported: %s", snip)
 	}
 
 	xpubStr, err := extractXpub(desc)
