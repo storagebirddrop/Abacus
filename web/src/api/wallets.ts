@@ -18,6 +18,8 @@ export interface Transaction {
   block_time: string
   fee_sats: number
   confirmed: boolean
+  net_sats: number   // positive = received, negative = sent
+  category: string   // ledger category: income | expense | transfer | ...
 }
 
 export interface ImportJob {
@@ -87,3 +89,13 @@ export const getImportJob = (jobID: string) =>
 
 export const listImportJobs = (walletID: string) =>
   apiFetch<ImportJob[]>(`/wallets/${walletID}/import-jobs`)
+
+export const patchTransaction = (
+  walletID: string,
+  txid: string,
+  data: { category?: string; note?: string; counterparty_id?: string },
+) =>
+  apiFetch<{ status: string }>(`/wallets/${walletID}/transactions/${txid}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })

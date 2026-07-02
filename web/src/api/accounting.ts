@@ -26,9 +26,11 @@ export interface CostBasisRecord {
   gain_fiat: number | null
 }
 
+export type AccountingMethod = 'fifo' | 'avgcost' | 'lifo' | 'hifo' | 'specificid' | 'section104'
+
 export const runAccounting = (
   walletID: string,
-  method: 'fifo' | 'avgcost',
+  method: AccountingMethod,
   currency: string
 ) =>
   apiFetch<AccountingSummary>(`/wallets/${walletID}/accounting/run`, {

@@ -104,8 +104,8 @@ func (h *WalletHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if req.Name == "" || req.Descriptor == "" {
-		writeError(w, http.StatusBadRequest, errors.New("name and descriptor are required"))
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, errors.New("name is required"))
 		return
 	}
 	network := domain.Network(req.Network)
@@ -278,8 +278,34 @@ func (h *WalletHandler) ListTransactions(w http.ResponseWriter, r *http.Request)
 	if txs == nil {
 		txs = []*domain.Transaction{}
 	}
+
+	// Enrich each transaction with net_sats and category derived from its
+	// ledger entries. This avoids exposing the internal ledger join as a
+	// separate round-trip from the frontend.
+	type txRow struct {
+		*domain.Transaction
+		NetSats  int64  `json:"net_sats"`
+		Category string `json:"category"`
+	}
+	rows := make([]txRow, 0, len(txs))
+	for _, tx := range txs {
+		var netSats int64
+		category := string(domain.CategoryUnknown)
+		if entries, err := h.ledger.ListByTransaction(r.Context(), walletID, tx.ID); err == nil && len(entries) > 0 {
+			for _, e := range entries {
+				if e.Type == domain.EntryTypeCredit {
+					netSats += e.Sats
+				} else {
+					netSats -= e.Sats
+				}
+			}
+			category = string(entries[0].Category)
+		}
+		rows = append(rows, txRow{Transaction: tx, NetSats: netSats, Category: category})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"data":  txs,
+		"data":  rows,
 		"total": total,
 		"page":  page,
 		"limit": limit,

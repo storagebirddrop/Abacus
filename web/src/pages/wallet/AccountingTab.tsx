@@ -3,6 +3,7 @@ import {
   getAccountingSummary,
   listCostBasis,
   runAccounting,
+  type AccountingMethod,
   type AccountingSummary,
   type CostBasisRecord,
 } from '../../api/accounting'
@@ -11,13 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { cn } from '../../lib/utils'
 import { ExportBar } from './ExportBar'
 
-function fmtCents(cents: number | null) {
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', GBP: '£' }
+
+function fmtCents(cents: number | null, currency: string) {
   if (cents === null || cents === 0) return '—'
-  return `€${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+  const sym = CURRENCY_SYMBOLS[currency] ?? currency + ' '
+  return `${sym}${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
 }
 
 export function AccountingTab({ walletID }: { walletID: string }) {
-  const [method, setMethod] = useState<'fifo' | 'avgcost'>('fifo')
+  const [method, setMethod] = useState<AccountingMethod>('fifo')
   const [currency, setCurrency] = useState('EUR')
   const [summary, setSummary] = useState<AccountingSummary | null>(null)
   const [records, setRecords] = useState<CostBasisRecord[]>([])
@@ -31,6 +35,7 @@ export function AccountingTab({ walletID }: { walletID: string }) {
       .then(([sum, recs]) => {
         setSummary(sum)
         setRecords(recs ?? [])
+        if (sum?.fiat_currency) setCurrency(sum.fiat_currency)
       })
       .catch((err: unknown) =>
         setLoadError(err instanceof Error ? err.message : 'Failed to load accounting data'),
@@ -58,16 +63,21 @@ export function AccountingTab({ walletID }: { walletID: string }) {
       {loadError && (
         <p role="alert" className="text-sm text-red-500">{loadError}</p>
       )}
-      <form onSubmit={handleRun} className="flex items-end gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
+
+      <form onSubmit={handleRun} className="flex flex-wrap items-end gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
         <div>
           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Method</label>
-          <Select value={method} onValueChange={(v) => setMethod(v as 'fifo' | 'avgcost')}>
+          <Select value={method} onValueChange={(v) => setMethod(v as AccountingMethod)}>
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="fifo">FIFO</SelectItem>
               <SelectItem value="avgcost">Average Cost</SelectItem>
+              <SelectItem value="lifo">LIFO</SelectItem>
+              <SelectItem value="hifo">HIFO</SelectItem>
+              <SelectItem value="specificid">Specific ID</SelectItem>
+              <SelectItem value="section104">Section 104 (UK)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -93,9 +103,9 @@ export function AccountingTab({ walletID }: { walletID: string }) {
       {summary && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Total Cost', value: fmtCents(summary.total_cost_fiat) },
-            { label: 'Unrealised Gain', value: fmtCents(summary.unrealised_gain_fiat) },
-            { label: 'Realised Gain', value: fmtCents(summary.realised_gain_fiat) },
+            { label: 'Total Cost', value: fmtCents(summary.total_cost_fiat, currency) },
+            { label: 'Unrealised Gain', value: fmtCents(summary.unrealised_gain_fiat, currency) },
+            { label: 'Realised Gain', value: fmtCents(summary.realised_gain_fiat, currency) },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
@@ -105,10 +115,11 @@ export function AccountingTab({ walletID }: { walletID: string }) {
         </div>
       )}
 
-      <div className="flex gap-2 mt-2">
+      <div className="flex gap-2">
         <ExportBar walletID={walletID} report="pnl" />
         <ExportBar walletID={walletID} report="balance-sheet" />
       </div>
+
       {records.length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
@@ -134,10 +145,12 @@ export function AccountingTab({ walletID }: { walletID: string }) {
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                     {r.disposed_at ? new Date(r.disposed_at).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right">{fmtCents(r.cost_fiat)}</td>
-                  <td className="px-4 py-3 text-right">{fmtCents(r.proceeds_fiat ?? null)}</td>
-                  <td className={cn('px-4 py-3 text-right font-medium', r.gain_fiat != null && r.gain_fiat < 0 ? 'text-red-500' : 'text-green-600')}>
-                    {fmtCents(r.gain_fiat ?? null)}
+                  <td className="px-4 py-3 text-right">{fmtCents(r.cost_fiat, currency)}</td>
+                  <td className="px-4 py-3 text-right">{fmtCents(r.proceeds_fiat ?? null, currency)}</td>
+                  <td className={cn('px-4 py-3 text-right font-medium',
+                    r.gain_fiat != null && r.gain_fiat < 0 ? 'text-red-500' : 'text-green-600'
+                  )}>
+                    {fmtCents(r.gain_fiat ?? null, currency)}
                   </td>
                 </tr>
               ))}
