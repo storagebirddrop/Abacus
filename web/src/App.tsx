@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import WalletsPage from './pages/WalletsPage'
 import WalletPage from './pages/WalletPage'
 import PricesPage from './pages/PricesPage'
+import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
 import NotFound from './pages/NotFound'
 
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/wallets" replace /> },
       { path: 'wallets', element: <WalletsPage /> },
       { path: 'wallets/:id', element: <WalletPage /> },
+      { path: 'reports', element: <ReportsPage /> },
       { path: 'prices', element: <PricesPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <NotFound /> },

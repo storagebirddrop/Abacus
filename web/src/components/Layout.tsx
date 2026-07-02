@@ -6,7 +6,7 @@ import { useTheme } from '../hooks/useTheme'
 
 const navItems = [
   { to: '/wallets', label: 'Wallets' },
-  { to: '/prices', label: 'Prices' },
+  { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings' },
 ]
 

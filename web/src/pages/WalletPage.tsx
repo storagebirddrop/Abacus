@@ -4,10 +4,9 @@ import { getWallet, type Wallet } from '../api/wallets'
 import { cn } from '../lib/utils'
 import { TransactionsTab } from './wallet/TransactionsTab'
 import { AccountingTab } from './wallet/AccountingTab'
-import { ImportTab } from './wallet/ImportTab'
-import { SyncPanel } from './wallet/SyncPanel'
+import { AdvancedTab } from './wallet/AdvancedTab'
 
-type Tab = 'transactions' | 'accounting' | 'import' | 'sync'
+type Tab = 'transactions' | 'accounting' | 'advanced'
 
 export default function WalletPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,8 +29,7 @@ export default function WalletPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'transactions', label: 'Transactions' },
     { key: 'accounting', label: 'Accounting' },
-    { key: 'import', label: 'Import' },
-    { key: 'sync', label: 'Sync' },
+    { key: 'advanced', label: 'Advanced' },
   ]
 
   return (
@@ -65,8 +63,7 @@ export default function WalletPage() {
 
       {tab === 'transactions' && <TransactionsTab walletID={id} />}
       {tab === 'accounting' && <AccountingTab walletID={id} />}
-      {tab === 'import' && <ImportTab walletID={id} />}
-      {tab === 'sync' && <SyncPanel walletID={id} />}
+      {tab === 'advanced' && <AdvancedTab walletID={id} />}
     </div>
   )
 }
