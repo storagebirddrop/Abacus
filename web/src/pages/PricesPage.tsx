@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { createPrice, listPrices, type PriceSnapshot } from '../api/prices'
+import { createPrice, fetchPricesFromCoinGecko, listPrices, type PriceSnapshot } from '../api/prices'
+import { listWallets, type Wallet } from '../api/wallets'
 import { Button } from '../components/ui/button'
 import {
   Dialog,
@@ -85,6 +86,66 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
   )
 }
 
+function CoinGeckoFetchPanel({ currency, onFetched }: { currency: string; onFetched: () => void }) {
+  const [wallets, setWallets] = useState<Wallet[]>([])
+  const [walletID, setWalletID] = useState('')
+  const [fetching, setFetching] = useState(false)
+  const [result, setResult] = useState<{ fetched: number; skipped: number } | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    listWallets().then((ws) => {
+      setWallets(ws ?? [])
+      if (ws?.length) setWalletID(ws[0].id)
+    })
+  }, [])
+
+  async function handleFetch() {
+    if (!walletID) return
+    setFetching(true)
+    setResult(null)
+    setError('')
+    try {
+      const res = await fetchPricesFromCoinGecko(walletID, currency)
+      setResult(res)
+      if (res.fetched > 0) onFetched()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch prices')
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  if (!wallets.length) return null
+
+  return (
+    <div className="flex items-center gap-3">
+      <Select value={walletID} onValueChange={setWalletID}>
+        <SelectTrigger className="w-44">
+          <SelectValue placeholder="Select wallet" />
+        </SelectTrigger>
+        <SelectContent>
+          {wallets.map((w) => (
+            <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button variant="outline" onClick={handleFetch} disabled={fetching || !walletID}>
+        {fetching ? 'Fetching…' : 'Fetch from CoinGecko'}
+      </Button>
+      {result && (
+        <span className="text-sm text-slate-500 dark:text-slate-400">
+          {result.fetched > 0
+            ? `Fetched ${result.fetched} price${result.fetched !== 1 ? 's' : ''}`
+            : 'All dates already covered'}
+          {result.skipped > 0 && `, ${result.skipped} skipped`}
+        </span>
+      )}
+      {error && <span className="text-sm text-red-500">{error}</span>}
+    </div>
+  )
+}
+
 export default function PricesPage() {
   const [currency, setCurrency] = useState('EUR')
   const [prices, setPrices] = useState<PriceSnapshot[]>([])
@@ -130,9 +191,11 @@ export default function PricesPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold">Price Snapshots</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <CoinGeckoFetchPanel currency={currency} onFetched={load} />
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger className="w-24">
               <SelectValue />

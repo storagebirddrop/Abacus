@@ -30,14 +30,16 @@ func (r *PriceSnapshotRepo) Insert(ctx context.Context, p *domain.PriceSnapshot)
 }
 
 // GetClosest returns the price snapshot nearest in time to t for the given currency.
-// Searches both before and after t, returning whichever is closer.
+// When two snapshots are equidistant, manual entries take precedence over automated
+// ones (e.g. "coingecko") so that user overrides always win.
 func (r *PriceSnapshotRepo) GetClosest(ctx context.Context, currency string, t time.Time) (*domain.PriceSnapshot, error) {
 	ts := t.Unix()
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, currency, price_fiat, source, timestamp
 		 FROM price_snapshots
 		 WHERE currency=?
-		 ORDER BY ABS(timestamp - ?) ASC
+		 ORDER BY ABS(timestamp - ?) ASC,
+		          CASE source WHEN 'manual' THEN 0 ELSE 1 END ASC
 		 LIMIT 1`,
 		currency, ts,
 	)

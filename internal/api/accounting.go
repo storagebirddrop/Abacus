@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/storagebirddrop/abacus/internal/accounting"
 	"github.com/storagebirddrop/abacus/internal/domain"
+	"github.com/storagebirddrop/abacus/internal/prices"
 )
 
 type accountingSvc interface {
@@ -31,16 +32,21 @@ type accountingWalletRepo interface {
 	GetByID(ctx context.Context, id string) (*domain.Wallet, error)
 }
 
+type txBlockTimeRepo interface {
+	ListBlockTimes(ctx context.Context, walletID string) ([]time.Time, error)
+}
+
 // AccountingHandler handles all Phase 3 accounting and price endpoints.
 type AccountingHandler struct {
 	svc        accountingSvc
 	priceRepo  priceSnapRepo
 	cbRepo     costBasisRepo
 	walletRepo accountingWalletRepo
+	txRepo     txBlockTimeRepo
 }
 
-func NewAccountingHandler(svc accountingSvc, priceRepo priceSnapRepo, cbRepo costBasisRepo, walletRepo accountingWalletRepo) *AccountingHandler {
-	return &AccountingHandler{svc: svc, priceRepo: priceRepo, cbRepo: cbRepo, walletRepo: walletRepo}
+func NewAccountingHandler(svc accountingSvc, priceRepo priceSnapRepo, cbRepo costBasisRepo, walletRepo accountingWalletRepo, txRepo txBlockTimeRepo) *AccountingHandler {
+	return &AccountingHandler{svc: svc, priceRepo: priceRepo, cbRepo: cbRepo, walletRepo: walletRepo, txRepo: txRepo}
 }
 
 func (h *AccountingHandler) requireWallet(w http.ResponseWriter, r *http.Request, walletID string) bool {
@@ -178,6 +184,112 @@ func (h *AccountingHandler) CreatePrice(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusCreated, snap)
+}
+
+// FetchPrices handles POST /prices/fetch.
+// It reads all confirmed transaction dates for the requested wallet, fetches
+// missing BTC/fiat prices from CoinGecko, and stores them with source="coingecko".
+// Dates that already have any price entry (manual or automated) are skipped so
+// that manual overrides are never clobbered.
+func (h *AccountingHandler) FetchPrices(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		WalletID string `json:"wallet_id"`
+		Currency string `json:"currency"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.WalletID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "wallet_id is required"})
+		return
+	}
+	if req.Currency == "" {
+		req.Currency = "EUR"
+	}
+	if !h.requireWallet(w, r, req.WalletID) {
+		return
+	}
+
+	// All confirmed block times for this wallet.
+	blockTimes, err := h.txRepo.ListBlockTimes(r.Context(), req.WalletID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if len(blockTimes) == 0 {
+		writeJSON(w, http.StatusOK, map[string]int{"fetched": 0, "skipped": 0})
+		return
+	}
+
+	// Collect unique UTC calendar dates from transaction times.
+	dateSet := make(map[time.Time]struct{}, len(blockTimes))
+	for _, t := range blockTimes {
+		day := truncateToDay(t)
+		dateSet[day] = struct{}{}
+	}
+
+	// Date range for existing-price lookup and CoinGecko request.
+	minDay := truncateToDay(blockTimes[0])
+	maxDay := truncateToDay(blockTimes[len(blockTimes)-1]).Add(48 * time.Hour)
+
+	// Existing prices — we skip any date that already has at least one entry.
+	existing, err := h.priceRepo.List(r.Context(), req.Currency, minDay, maxDay)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	coveredDays := make(map[time.Time]struct{}, len(existing))
+	for _, p := range existing {
+		coveredDays[truncateToDay(p.Timestamp)] = struct{}{}
+	}
+
+	// Which dates are still missing?
+	var missing []time.Time
+	for day := range dateSet {
+		if _, ok := coveredDays[day]; !ok {
+			missing = append(missing, day)
+		}
+	}
+	skipped := len(dateSet) - len(missing)
+	if len(missing) == 0 {
+		writeJSON(w, http.StatusOK, map[string]int{"fetched": 0, "skipped": skipped})
+		return
+	}
+
+	// Single CoinGecko call for the full range.
+	cgPrices, err := prices.FetchRange(r.Context(), req.Currency, minDay, maxDay)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	// Insert a price snapshot for each missing date.
+	fetched := 0
+	for _, day := range missing {
+		priceCents, ok := cgPrices[day]
+		if !ok || priceCents <= 0 {
+			// CoinGecko may not have data for this exact date (e.g. very old or future).
+			continue
+		}
+		snap := &domain.PriceSnapshot{
+			Currency:  req.Currency,
+			PriceFiat: priceCents,
+			Source:    "coingecko",
+			Timestamp: day,
+		}
+		if err := h.priceRepo.Insert(r.Context(), snap); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		fetched++
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int{"fetched": fetched, "skipped": skipped})
+}
+
+func truncateToDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func parseTimeRange(r *http.Request) (from, to time.Time) {
