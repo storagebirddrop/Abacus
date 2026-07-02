@@ -7,9 +7,33 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Documentation: version-history accuracy pass (CHANGELOG entries for
+  0.1.1/0.1.2, dead `VERSION` env var removed, stale version references in
+  README/backlog generalized) and a backlog accuracy pass checking off items
+  that had already landed in code.
+- `SECURITY.md`/`.env.example`/`README.md`: recommend `openssl rand -hex 32`
+  for `API_TOKEN`.
+
+## [0.1.2] - 2026-07-01
+
+### Fixed
+- Docs accuracy pass: removed a phantom "Bitcoin Core" sync-backend claim
+  that was never implemented; documented the actual supported backends.
+
 ### Added
-- Drag-and-drop import zone in the Import tab — drop a wallet export file directly
-  onto the drop zone (or click to browse); upload starts immediately on file selection.
+- Drag-and-drop import zone in the Import tab — drop a wallet export file
+  directly onto the drop zone (or click to browse); upload starts
+  immediately on file selection.
+
+## [0.1.1] - 2026-07-01
+
+### Fixed
+- Removed an unused `Button` import and vestigial form-submit calls from
+  `ImportTab`.
+
+### Changed
+- Dependency bumps: GitHub Actions, npm minor/patch group, `jsdom`.
 
 ## [0.1.0] - 2026-07-01
 
@@ -60,5 +84,7 @@ remediation are included.
   the auth health/version exemption is an exact path match.
 - Import uploads bounded (413 over the 32 MiB cap) to prevent memory exhaustion.
 
-[Unreleased]: https://github.com/storagebirddrop/Abacus/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/storagebirddrop/Abacus/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/storagebirddrop/Abacus/releases/tag/v0.1.2
+[0.1.1]: https://github.com/storagebirddrop/Abacus/releases/tag/v0.1.1
 [0.1.0]: https://github.com/storagebirddrop/Abacus/releases/tag/v0.1.0

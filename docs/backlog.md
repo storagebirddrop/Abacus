@@ -55,9 +55,11 @@ Verified against the code; these had landed but were left unchecked:
   API also never returns `null`. Non-issue.
 - [x] **Unused type imports** — would fail `npm run lint` (oxlint) in CI; none
   present.
-- [x] **`v0.1.0` AppImage release** — done; see Release & Housekeeping below.
-  (This item was duplicated/contradicted itself in this file — listed both
-  open here and done further down. Removed the stale duplicate.)
+
+Note: an earlier version of this file also duplicated the AppImage-release
+item here (marked open) while the real entry — see "Release & Housekeeping"
+below — was already done. Removed the stale duplicate; see that section for
+the actual release history.
 
 ---
 
@@ -114,8 +116,18 @@ Verified against the code; these had landed but were left unchecked:
 - [x] **Version wiring** — `var version = "dev"` in `main.go`; ldflags
   `-X main.version=<tag>` now bakes the version into the binary (PR #71).
 - [x] **Remote branch cleanup** — all 52 merged/closed stale branches deleted.
-- [x] **`v0.1.0` release** — tag pushed, signed AppImage published on GitHub Releases.
+- [x] **Signed AppImage releases** — `v0.1.0` → `v0.1.1` → `v0.1.2` tagged and
+  published on GitHub Releases (each with cosign signature + checksums); see
+  `CHANGELOG.md` for what shipped in each. `v0.1.2` is current.
 - [x] **Drag-and-drop import** — drop zone added to Import tab; upload starts on drop.
+
+Note: a stray `v1.0.0` tag also exists in the repo with **no GitHub Release**
+attached — a leftover placeholder from before versioning was rethought,
+pointing to a commit well behind `main` (predates the LIFO fix and security
+hardening). It does not appear on the Releases page (GitHub correctly shows
+`v0.1.2` as latest) and is not linked from any doc. Deleting it requires a
+local git credential (tag deletion 403s from CI, same as tag push) — left as
+a manual housekeeping item for the maintainer.
 
 ---
 

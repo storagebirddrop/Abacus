@@ -170,7 +170,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, dark mode + a11y | ✅ |
 | Version baked into binary at build time via ldflags | ✅ |
 | Remote branch cleanup | ✅ |
-| `v0.1.0` AppImage release | ✅ |
+| Signed AppImage releases — see [Releases](https://github.com/storagebirddrop/Abacus/releases) for the latest | ✅ |
 | Drag-and-drop import zone in the UI | ✅ |
 | Bitcoin Core sync backend | 🔲 |
 
