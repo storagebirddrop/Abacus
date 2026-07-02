@@ -1,0 +1,80 @@
+name: Auto Release
+
+# Fires after every successful CI run on main.
+# Reads the squash-merge commit message, bumps semver, and pushes a tag.
+# The existing release.yml workflow then picks up the tag and builds the AppImage.
+#
+# Setup required (one-time):
+#   Create a fine-grained Personal Access Token (PAT) with "Contents: Read and write"
+#   on this repository, then add it as a repository secret named RELEASE_PAT.
+#   (A push made with the default GITHUB_TOKEN cannot trigger subsequent workflow runs,
+#    so a PAT is required to let the new tag kick off release.yml.)
+#   Settings → Secrets and variables → Actions → New repository secret → RELEASE_PAT
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  bump-and-tag:
+    # Only run when CI actually passed (not on failure or cancellation).
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # Use the PAT so the pushed tag triggers release.yml.
+          token: ${{ secrets.RELEASE_PAT }}
+          # Check out the exact commit that passed CI (not whatever HEAD main is now).
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine bump type from commit message
+        id: bump
+        run: |
+          MSG=$(git log -1 --format=%s)
+          echo "Commit: $MSG"
+          # Conventional commits: feat → minor bump; everything else → patch bump.
+          # Also bump minor on feat! (breaking change).
+          if echo "$MSG" | grep -qE '^feat(\([^)]*\))?[!:]'; then
+            echo "type=minor" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=patch" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute next version
+        id: version
+        run: |
+          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST"
+
+          VER=${LATEST#v}
+          MAJOR=$(echo "$VER" | cut -d. -f1)
+          MINOR=$(echo "$VER" | cut -d. -f2)
+          PATCH=$(echo "$VER" | cut -d. -f3)
+
+          if [ "${{ steps.bump.outputs.type }}" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Next version: $NEXT"
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Push new tag
+        run: |
+          git tag "${{ steps.version.outputs.tag }}" "${{ github.event.workflow_run.head_sha }}"
+          git push origin "${{ steps.version.outputs.tag }}"
