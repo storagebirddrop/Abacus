@@ -17,16 +17,22 @@ Motto: *Wallets manage bitcoin. Abacus manages the books.*
 ```
 cmd/abacus/main.go          entrypoint — registers importers, starts HTTP
 internal/domain/            core types (no external deps)
+  exchange.go               ExchangeTrade entity + TradeType constants
 internal/importer/          plugin importers
   importer.go               WalletImporter interface + registry
   service.go                import orchestration + ledger wiring
-  common/                   shared parsers: bsms.go, bip329.go
+  common/                   shared parsers: bsms.go, bip329.go, exchange_csv.go
   sparrow/                  Sparrow wallet importer
   nunchuk/                  Nunchuk wallet importer
   coldcard/                 Coldcard hardware wallet (descriptor export)
   specter/                  Specter Desktop (descriptor export)
   electrum/                 Electrum wallet (transaction history)
   descriptor/               Generic descriptor fallback (Jade, Passport, SeedSigner, etc.)
+  bitvavo/                  Bitvavo exchange CSV importer
+  bitonic/                  Bitonic exchange CSV importer (Dutch BTC exchange)
+  kraken/                   Kraken Ledgers CSV importer (refid-pairing)
+  coinbase/                 Coinbase Transaction History CSV importer
+  strike/                   Strike CSV importer (Lightning + trades)
 internal/normalizer/        wallet-agnostic normalization
 internal/ledger/            ledger engine (Build: tx → entries + UTXOs)
 internal/prices/            external price-feed integrations
@@ -39,6 +45,7 @@ internal/accounting/        cost basis calculations — all pure functions
   hifo.go                   RunHIFO
   specificid.go             RunSpecificID
   section104.go             RunSection104 (UK HMRC — same-day, 30-day, pool)
+  exchange.go               RunExchangeFIFO — FIFO lot-matching for exchange trades
   accounting_test.go        unit tests (no DB)
 internal/repository/        SQLite data access
   wallet_repo.go
@@ -51,6 +58,7 @@ internal/repository/        SQLite data access
   journal_repo.go
   label_repo.go
   sync_repo.go
+  exchange_trade_repo.go    Create / ListByWallet / CountByWallet (INSERT OR IGNORE dedup)
 internal/api/               HTTP handlers and router
   router.go                 all routes registered here
   wallets.go                wallet + import + transaction + label handlers
@@ -164,7 +172,7 @@ Spec: `docs/api/swagger.yaml`.
 ### Wallet & Import
 - `GET/POST /api/v1/wallets` — list, create
 - `GET/DELETE /api/v1/wallets/{id}` — get, delete
-- `POST /api/v1/wallets/{id}/import` — upload Sparrow/Nunchuk/Coldcard/Specter/Electrum/BIP329/BSMS
+- `POST /api/v1/wallets/{id}/import` — upload Sparrow/Nunchuk/Coldcard/Specter/Electrum/BIP329/BSMS or exchange CSV (Bitvavo/Bitonic/Kraken/Coinbase/Strike)
 - `GET /api/v1/wallets/{id}/import-jobs` — list import history
 - `GET /api/v1/import-jobs/{id}` — job status
 

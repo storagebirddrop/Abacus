@@ -120,6 +120,9 @@ the actual release history.
   published on GitHub Releases (each with cosign signature + checksums); see
   `CHANGELOG.md` for what shipped in each. `v0.1.2` is current.
 - [x] **Drag-and-drop import** — drop zone added to Import tab; upload starts on drop.
+- [x] **Exchange account imports** — five exchange importers (Bitvavo, Bitonic, Kraken,
+  Coinbase, Strike); `exchange_trades` table (migration 006); `ExchangeTrade` domain
+  entity; `RunExchangeFIFO` accounting; Add Wallet dialog wallet-type toggle (PR #88).
 
 Note: a stray `v1.0.0` tag also exists in the repo with **no GitHub Release**
 attached — a leftover placeholder from before versioning was rethought,
