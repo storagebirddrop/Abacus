@@ -10,6 +10,7 @@ vi.mock('../api/wallets', () => ({
   listWallets: vi.fn(),
   createWallet: vi.fn(),
   deleteWallet: vi.fn(),
+  importWallet: vi.fn(),
 }))
 
 import { listWallets, createWallet, deleteWallet } from '../api/wallets'
@@ -65,16 +66,12 @@ describe('WalletsPage', () => {
     renderPage()
     await screen.findByText('No wallets yet')
 
-    await userEvent.click(screen.getByRole('button', { name: 'New Wallet' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add Wallet' }))
     await userEvent.type(screen.getByPlaceholderText('My Bitcoin Wallet'), 'Cold Storage')
-    await userEvent.type(
-      screen.getByPlaceholderText('wpkh([fingerprint/path]xpub...)'),
-      'wpkh(xpub123)',
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add Wallet' }))
 
     await waitFor(() =>
-      expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: 'wpkh(xpub123)' }),
+      expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: '' }),
     )
     // load() runs once on mount and again after creation.
     expect(listMock).toHaveBeenCalledTimes(2)
