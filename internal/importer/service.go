@@ -31,6 +31,10 @@ type LedgerRepo interface {
 	InsertWithTx(ctx context.Context, tx *sql.Tx, e *domain.LedgerEntry) error
 }
 
+type ExchangeTradeRepo interface {
+	Create(ctx context.Context, tx *sql.Tx, t *domain.ExchangeTrade) error
+}
+
 type UTXORepo interface {
 	UpsertWithTx(ctx context.Context, tx *sql.Tx, u *domain.UTXO) error
 	MarkSpentWithTx(ctx context.Context, tx *sql.Tx, prevTxid string, prevVout int, spentByTxid string) error
@@ -47,24 +51,26 @@ type JobRepo interface {
 }
 
 type Service struct {
-	db         Storer
-	walletRepo WalletRepo
-	txRepo     TxRepo
-	lblRepo    LabelRepo
-	ledgerRepo LedgerRepo
-	utxoRepo   UTXORepo
-	jobRepo    JobRepo
+	db               Storer
+	walletRepo       WalletRepo
+	txRepo           TxRepo
+	lblRepo          LabelRepo
+	ledgerRepo       LedgerRepo
+	utxoRepo         UTXORepo
+	jobRepo          JobRepo
+	exchangeTradeRepo ExchangeTradeRepo
 }
 
-func NewService(db Storer, walletRepo WalletRepo, txRepo TxRepo, lblRepo LabelRepo, ledgerRepo LedgerRepo, utxoRepo UTXORepo, jobRepo JobRepo) *Service {
+func NewService(db Storer, walletRepo WalletRepo, txRepo TxRepo, lblRepo LabelRepo, ledgerRepo LedgerRepo, utxoRepo UTXORepo, jobRepo JobRepo, exchangeTradeRepo ExchangeTradeRepo) *Service {
 	return &Service{
-		db:         db,
-		walletRepo: walletRepo,
-		txRepo:     txRepo,
-		lblRepo:    lblRepo,
-		ledgerRepo: ledgerRepo,
-		utxoRepo:   utxoRepo,
-		jobRepo:    jobRepo,
+		db:               db,
+		walletRepo:       walletRepo,
+		txRepo:           txRepo,
+		lblRepo:          lblRepo,
+		ledgerRepo:       ledgerRepo,
+		utxoRepo:         utxoRepo,
+		jobRepo:          jobRepo,
+		exchangeTradeRepo: exchangeTradeRepo,
 	}
 }
 
@@ -185,9 +191,47 @@ func (s *Service) Run(ctx context.Context, walletID, filename string, data []byt
 		}
 	}
 
+	// Persist exchange trades and their ledger entries.
+	for i := range result.Trades {
+		trade := &result.Trades[i]
+		trade.WalletID = walletID
+		if trade.ID == "" {
+			trade.ID = uuid.New().String()
+		}
+		if err := s.exchangeTradeRepo.Create(ctx, dbTx, trade); err != nil {
+			_ = dbTx.Rollback()
+			return nil, fmt.Errorf("insert exchange trade: %w", err)
+		}
+		// Create a ledger entry so the trade appears in the transaction history.
+		entryType := domain.EntryTypeCredit
+		if trade.IsDisposal() {
+			entryType = domain.EntryTypeDebit
+		}
+		sats := trade.Sats
+		if sats < 0 {
+			sats = -sats
+		}
+		category := tradeCategory(trade.TradeType)
+		entry := &domain.LedgerEntry{
+			ID:              uuid.New().String(),
+			WalletID:        walletID,
+			ExchangeTradeID: trade.ID,
+			Type:            entryType,
+			Sats:            sats,
+			FiatAmount:      trade.FiatAmount,
+			FiatCurrency:    trade.FiatCurrency,
+			Category:        category,
+			CreatedAt:       trade.TradedAt,
+		}
+		if err := s.ledgerRepo.InsertWithTx(ctx, dbTx, entry); err != nil {
+			_ = dbTx.Rollback()
+			return nil, fmt.Errorf("insert exchange ledger entry: %w", err)
+		}
+	}
+
 	fin := time.Now().UTC()
 	job.Status = "done"
-	job.RecordsImported = len(result.Transactions) + len(result.Labels)
+	job.RecordsImported = len(result.Transactions) + len(result.Labels) + len(result.Trades)
 	job.FinishedAt = &fin
 	if err := s.jobRepo.UpdateWithTx(ctx, dbTx, job); err != nil {
 		_ = dbTx.Rollback()
@@ -205,4 +249,22 @@ func (s *Service) Run(ctx context.Context, walletID, filename string, data []byt
 	}
 
 	return job, nil
+}
+
+// tradeCategory maps a TradeType to the most appropriate Category for the ledger entry.
+func tradeCategory(tt domain.TradeType) domain.Category {
+	switch tt {
+	case domain.TradeTypeBuy, domain.TradeTypeDeposit:
+		return domain.CategoryExchange
+	case domain.TradeTypeSell, domain.TradeTypeWithdrawal:
+		return domain.CategoryExchange
+	case domain.TradeTypeFee:
+		return domain.CategoryFee
+	case domain.TradeTypeLightningReceive:
+		return domain.CategoryLightning
+	case domain.TradeTypeLightningSend:
+		return domain.CategoryLightning
+	default:
+		return domain.CategoryUnknown
+	}
 }

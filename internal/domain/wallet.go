@@ -14,10 +14,11 @@ const (
 	NetworkTestnet Network = "testnet"
 	NetworkSignet  Network = "signet"
 
-	WalletSourceSparrow WalletSource = "sparrow"
-	WalletSourceNunchuk WalletSource = "nunchuk"
-	WalletSourceBSMS    WalletSource = "bsms"
-	WalletSourceManual  WalletSource = "manual"
+	WalletSourceSparrow  WalletSource = "sparrow"
+	WalletSourceNunchuk  WalletSource = "nunchuk"
+	WalletSourceBSMS     WalletSource = "bsms"
+	WalletSourceManual   WalletSource = "manual"
+	WalletSourceExchange WalletSource = "exchange"
 )
 
 type Wallet struct {

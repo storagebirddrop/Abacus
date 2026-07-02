@@ -67,7 +67,7 @@ describe('WalletsPage', () => {
     await userEvent.type(screen.getByPlaceholderText('My Bitcoin Wallet'), 'Cold Storage')
     await userEvent.click(screen.getByRole('button', { name: 'Add Wallet' }))
 
-    expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: '' })
+    expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: '', source: 'manual' })
     // load() runs once on mount and again after creation.
     expect(listMock).toHaveBeenCalledTimes(2)
   })

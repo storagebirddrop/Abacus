@@ -11,9 +11,14 @@ import {
 } from './ui/dialog'
 import { cn } from '../lib/utils'
 
+const EXCHANGES = ['Bitvavo', 'Bitonic', 'Kraken', 'Coinbase', 'Strike'] as const
+type Exchange = (typeof EXCHANGES)[number]
+
 export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [walletMode, setWalletMode] = useState<'onchain' | 'exchange'>('onchain')
+  const [exchange, setExchange] = useState<Exchange>('Bitvavo')
   const [name, setName] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [descriptor, setDescriptor] = useState('')
@@ -24,6 +29,8 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   function reset() {
+    setWalletMode('onchain')
+    setExchange('Bitvavo')
     setName('')
     setFile(null)
     setDescriptor('')
@@ -50,16 +57,27 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
     if (f) handleFileSelect(f)
   }
 
+  function handleModeChange(mode: 'onchain' | 'exchange') {
+    setWalletMode(mode)
+    setFile(null)
+    setDescriptor('')
+    setShowDescriptor(false)
+    setError('')
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) {
+    const walletName = name.trim() || (walletMode === 'exchange' ? exchange : '')
+    if (!walletName) {
       setError('Wallet name is required.')
       return
     }
     setLoading(true)
     setError('')
     try {
-      const wallet = await createWallet({ name: name.trim(), descriptor })
+      const source = walletMode === 'exchange' ? 'exchange' : 'manual'
+      const desc = walletMode === 'exchange' ? `exchange:${exchange.toLowerCase()}` : descriptor
+      const wallet = await createWallet({ name: walletName, descriptor: desc, source })
       if (file) {
         await importWallet(wallet.id, file)
         setOpen(false)
@@ -77,6 +95,8 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
     }
   }
 
+  const isExchange = walletMode === 'exchange'
+
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset() }}>
       <DialogTrigger asChild>
@@ -87,12 +107,68 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
           <DialogTitle>Add Wallet</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Wallet type toggle */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Wallet type</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleModeChange('onchain')}
+                className={cn(
+                  'flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors',
+                  !isExchange
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400',
+                )}
+              >
+                On-chain wallet
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange('exchange')}
+                className={cn(
+                  'flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors',
+                  isExchange
+                    ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400',
+                )}
+              >
+                Exchange account
+              </button>
+            </div>
+          </div>
+
+          {/* Exchange selector (exchange mode only) */}
+          {isExchange && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Exchange</label>
+              <select
+                className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                value={exchange}
+                onChange={(e) => setExchange(e.target.value as Exchange)}
+              >
+                {EXCHANGES.map((ex) => (
+                  <option key={ex} value={ex}>{ex}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* File drop zone */}
           <div>
-            <label className="block text-sm font-medium mb-1">Import file <span className="text-slate-400 font-normal">(optional)</span></label>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-              Sparrow, Nunchuk, Coldcard, Specter, Electrum, or any JSON/BSMS/JSONL export.
-            </p>
+            <label className="block text-sm font-medium mb-1">
+              {isExchange ? 'Transaction export file' : 'Import file'}{' '}
+              <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            {isExchange ? (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                Upload your {exchange} transaction history CSV export.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                Sparrow, Nunchuk, Coldcard, Specter, Electrum, or any JSON/BSMS/JSONL export.
+              </p>
+            )}
             <div
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -150,30 +226,32 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
               className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white dark:bg-slate-900"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Bitcoin Wallet"
-              required
+              placeholder={isExchange ? exchange : 'My Bitcoin Wallet'}
+              required={!isExchange}
             />
           </div>
 
-          {/* Advanced: descriptor */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowDescriptor((v) => !v)}
-              className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
-            >
-              {showDescriptor ? 'Hide descriptor' : 'Enter output descriptor (advanced)'}
-            </button>
-            {showDescriptor && (
-              <textarea
-                className="mt-2 w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white dark:bg-slate-900 resize-none"
-                value={descriptor}
-                onChange={(e) => setDescriptor(e.target.value)}
-                placeholder="wpkh([fingerprint/path]xpub…)"
-                rows={3}
-              />
-            )}
-          </div>
+          {/* Advanced: descriptor (on-chain only) */}
+          {!isExchange && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowDescriptor((v) => !v)}
+                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+              >
+                {showDescriptor ? 'Hide descriptor' : 'Enter output descriptor (advanced)'}
+              </button>
+              {showDescriptor && (
+                <textarea
+                  className="mt-2 w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white dark:bg-slate-900 resize-none"
+                  value={descriptor}
+                  onChange={(e) => setDescriptor(e.target.value)}
+                  placeholder="wpkh([fingerprint/path]xpub…)"
+                  rows={3}
+                />
+              )}
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -182,7 +260,9 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? (file ? 'Creating & importing…' : 'Creating…') : (file ? 'Add & Import' : 'Add Wallet')}
+              {loading
+                ? (file ? 'Creating & importing…' : 'Creating…')
+                : (file ? 'Add & Import' : 'Add Wallet')}
             </Button>
           </div>
         </form>

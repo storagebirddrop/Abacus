@@ -33,14 +33,15 @@ type WalletSetup struct {
 }
 
 type ImportResult struct {
-	WalletSetup  *WalletSetup
-	Transactions []domain.Transaction
-	Inputs       []domain.TransactionInput
-	Outputs      []domain.TransactionOutput
-	UTXOs        []domain.UTXO
-	Labels       []domain.Label
-	Addresses    []domain.Address
-	Errors       []ImportError
+	WalletSetup   *WalletSetup
+	Transactions  []domain.Transaction
+	Inputs        []domain.TransactionInput
+	Outputs       []domain.TransactionOutput
+	UTXOs         []domain.UTXO
+	Labels        []domain.Label
+	Addresses     []domain.Address
+	Trades        []domain.ExchangeTrade // exchange trade imports
+	Errors        []ImportError
 }
 
 type ImportError struct {
