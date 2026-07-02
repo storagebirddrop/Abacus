@@ -1,10 +1,12 @@
 package sync
 
 import (
-	"fmt"
-	"strings"
-
+	"bytes"
 	"crypto/sha256"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/base58"
@@ -17,14 +19,15 @@ import (
 type addrType int
 
 const (
-	addrP2WPKH     addrType = iota // wpkh(...)
-	addrP2SHP2WPKH                 // sh(wpkh(...))
-	addrP2PKH                      // pkh(...)
+	addrP2WPKH      addrType = iota // wpkh(...)
+	addrP2SHP2WPKH                  // sh(wpkh(...))
+	addrP2PKH                       // pkh(...)
+	addrP2WSHMulti                  // wsh(multi(k,...)) or wsh(sortedmulti(k,...))
 )
 
-// DeriveAddresses derives the first upTo receiving and change addresses from a
-// single-sig output descriptor. Supports wpkh, sh(wpkh), and pkh descriptors.
-// Returns an error for multisig or unrecognised descriptor types.
+// DeriveAddresses derives the first upTo receiving and change addresses from an
+// output descriptor. Supports wpkh, sh(wpkh), pkh, wsh(multi), and
+// wsh(sortedmulti) descriptors.
 func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (receiving, change []string, err error) {
 	desc := strings.TrimSpace(descriptor)
 	// Strip checksum (#...)
@@ -33,6 +36,13 @@ func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (rec
 	}
 	lower := strings.ToLower(desc)
 
+	// Multisig: wsh(multi(...)) or wsh(sortedmulti(...))
+	if strings.HasPrefix(lower, "wsh(multi(") || strings.HasPrefix(lower, "wsh(sortedmulti(") {
+		sorted := strings.HasPrefix(lower, "wsh(sortedmulti(")
+		return deriveMultisig(desc, network, upTo, sorted)
+	}
+
+	// Singlesig
 	var at addrType
 	switch {
 	case strings.HasPrefix(lower, "sh(wpkh("):
@@ -43,10 +53,10 @@ func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (rec
 		at = addrP2PKH
 	default:
 		snip := desc
-		if len(snip) > 40 {
-			snip = snip[:40]
+		if len(snip) > 60 {
+			snip = snip[:60]
 		}
-		return nil, nil, fmt.Errorf("unsupported descriptor (multisig requires Phase 7+): %s", snip)
+		return nil, nil, fmt.Errorf("unsupported descriptor: %s", snip)
 	}
 
 	xpubStr, err := extractXpub(desc)
@@ -54,17 +64,9 @@ func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (rec
 		return nil, nil, err
 	}
 
-	masterKey, err := hdkeychain.NewKeyFromString(xpubStr)
+	masterKey, err := parseExtendedKey(xpubStr)
 	if err != nil {
-		// Some wallets export zpub/ypub; normalise to xpub version bytes.
-		norm, nerr := normalizeToXpub(xpubStr)
-		if nerr != nil {
-			return nil, nil, fmt.Errorf("parse xpub %q: %w", xpubStr[:min(20, len(xpubStr))], err)
-		}
-		masterKey, err = hdkeychain.NewKeyFromString(norm)
-		if err != nil {
-			return nil, nil, fmt.Errorf("parse normalized xpub: %w", err)
-		}
+		return nil, nil, err
 	}
 
 	deriveChain := func(chainIdx uint32) ([]string, error) {
@@ -96,6 +98,182 @@ func DeriveAddresses(descriptor string, network *chaincfg.Params, upTo int) (rec
 		return nil, nil, fmt.Errorf("derive change addresses: %w", err)
 	}
 	return receiving, change, nil
+}
+
+// deriveMultisig handles wsh(multi(k,...)) and wsh(sortedmulti(k,...)) descriptors.
+//
+// Descriptor form (abbreviated):
+//
+//	wsh(sortedmulti(k,[fp/path]xpub1/0/*,[fp/path]xpub2/0/*,...))
+//
+// The last two path components after each xpub (/chain/index) map to the
+// BIP32 receive (chain=0) and change (chain=1) branches. The wildcard (*)
+// is the per-address index we enumerate.
+func deriveMultisig(desc string, network *chaincfg.Params, upTo int, sorted bool) (receiving, change []string, err error) {
+	// Extract the inner content of wsh(...)
+	inner, err := extractParenContent(desc, "wsh(")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Extract the inner content of multi(...) or sortedmulti(...)
+	prefix := "multi("
+	if sorted {
+		prefix = "sortedmulti("
+	}
+	multiInner, err := extractParenContent(inner, prefix)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Split on commas at the top level (not inside brackets or parens).
+	parts := splitTopLevel(multiInner)
+	if len(parts) < 2 {
+		return nil, nil, fmt.Errorf("invalid multi descriptor: expected threshold and at least one key")
+	}
+
+	threshold, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid threshold %q: %w", parts[0], err)
+	}
+	keyExprs := parts[1:]
+	n := len(keyExprs)
+	if threshold < 1 || threshold > n {
+		return nil, nil, fmt.Errorf("invalid threshold %d for %d keys", threshold, n)
+	}
+
+	// Parse each key expression into an hdkeychain.ExtendedKey.
+	masterKeys := make([]*hdkeychain.ExtendedKey, n)
+	for i, expr := range keyExprs {
+		xpubStr, err := extractXpub(strings.TrimSpace(expr))
+		if err != nil {
+			return nil, nil, fmt.Errorf("key %d: %w", i, err)
+		}
+		k, err := parseExtendedKey(xpubStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("key %d: %w", i, err)
+		}
+		masterKeys[i] = k
+	}
+
+	deriveChain := func(chainIdx uint32) ([]string, error) {
+		// Derive chain-level keys for all cosigners.
+		chainKeys := make([]*hdkeychain.ExtendedKey, n)
+		for i, mk := range masterKeys {
+			ck, err := mk.Derive(chainIdx)
+			if err != nil {
+				return nil, fmt.Errorf("derive chain key %d: %w", i, err)
+			}
+			chainKeys[i] = ck
+		}
+
+		addrs := make([]string, 0, upTo)
+		for idx := uint32(0); idx < uint32(upTo); idx++ {
+			pubkeys := make([][]byte, n)
+			for i, ck := range chainKeys {
+				child, err := ck.Derive(idx)
+				if err != nil {
+					return nil, fmt.Errorf("derive index %d key %d: %w", idx, i, err)
+				}
+				pub, err := child.ECPubKey()
+				if err != nil {
+					return nil, fmt.Errorf("ECPubKey index %d key %d: %w", idx, i, err)
+				}
+				pubkeys[i] = pub.SerializeCompressed()
+			}
+
+			if sorted {
+				sort.Slice(pubkeys, func(a, b int) bool {
+					return bytes.Compare(pubkeys[a], pubkeys[b]) < 0
+				})
+			}
+
+			addr, err := p2wshMultisigAddr(threshold, pubkeys, network)
+			if err != nil {
+				return nil, fmt.Errorf("build address index %d: %w", idx, err)
+			}
+			addrs = append(addrs, addr)
+		}
+		return addrs, nil
+	}
+
+	receiving, err = deriveChain(0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("derive receiving addresses: %w", err)
+	}
+	change, err = deriveChain(1)
+	if err != nil {
+		return nil, nil, fmt.Errorf("derive change addresses: %w", err)
+	}
+	return receiving, change, nil
+}
+
+// p2wshMultisigAddr builds a native SegWit P2WSH address for a k-of-n multisig.
+func p2wshMultisigAddr(threshold int, pubkeys [][]byte, net *chaincfg.Params) (string, error) {
+	builder := txscript.NewScriptBuilder()
+	builder.AddOp(txscript.OP_1 - 1 + byte(threshold))
+	for _, pub := range pubkeys {
+		builder.AddData(pub)
+	}
+	builder.AddOp(txscript.OP_1 - 1 + byte(len(pubkeys)))
+	builder.AddOp(txscript.OP_CHECKMULTISIG)
+	witnessScript, err := builder.Script()
+	if err != nil {
+		return "", fmt.Errorf("build witness script: %w", err)
+	}
+
+	scriptHash := sha256.Sum256(witnessScript)
+	addr, err := btcutil.NewAddressWitnessScriptHash(scriptHash[:], net)
+	if err != nil {
+		return "", fmt.Errorf("build P2WSH address: %w", err)
+	}
+	return addr.EncodeAddress(), nil
+}
+
+// extractParenContent returns the content inside prefix(...) at the outermost
+// nesting level. prefix must include the opening paren, e.g. "wsh(".
+func extractParenContent(s, prefix string) (string, error) {
+	lower := strings.ToLower(s)
+	idx := strings.Index(lower, strings.ToLower(prefix))
+	if idx < 0 {
+		return "", fmt.Errorf("%q not found in descriptor", prefix)
+	}
+	start := idx + len(prefix)
+	depth := 1
+	for i := start; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return s[start:i], nil
+			}
+		}
+	}
+	return "", fmt.Errorf("unbalanced parentheses in descriptor")
+}
+
+// splitTopLevel splits s by commas that are not inside brackets [] or parens ().
+func splitTopLevel(s string) []string {
+	var parts []string
+	depth := 0
+	start := 0
+	for i, c := range s {
+		switch c {
+		case '(', '[':
+			depth++
+		case ')', ']':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, s[start:])
+	return parts
 }
 
 // extractXpub finds the xpub/ypub/zpub (or testnet variants) in a descriptor string.
@@ -133,6 +311,24 @@ func isBase58(c byte) bool {
 		}
 	}
 	return false
+}
+
+// parseExtendedKey parses an xpub/ypub/zpub string, normalising to xpub version
+// bytes if needed.
+func parseExtendedKey(xpubStr string) (*hdkeychain.ExtendedKey, error) {
+	k, err := hdkeychain.NewKeyFromString(xpubStr)
+	if err == nil {
+		return k, nil
+	}
+	norm, nerr := normalizeToXpub(xpubStr)
+	if nerr != nil {
+		return nil, fmt.Errorf("parse xpub %q: %w", xpubStr[:min(20, len(xpubStr))], err)
+	}
+	k, err = hdkeychain.NewKeyFromString(norm)
+	if err != nil {
+		return nil, fmt.Errorf("parse normalized xpub: %w", err)
+	}
+	return k, nil
 }
 
 // keyToAddr converts an extended key to a Bitcoin address string.
