@@ -29,6 +29,8 @@ internal/importer/          plugin importers
   descriptor/               Generic descriptor fallback (Jade, Passport, SeedSigner, etc.)
 internal/normalizer/        wallet-agnostic normalization
 internal/ledger/            ledger engine (Build: tx → entries + UTXOs)
+internal/prices/            external price-feed integrations
+  coingecko.go              FetchRange — single HTTP call for a date range
 internal/accounting/        cost basis calculations — all pure functions
   accounting.go             Service, PriceLookup, AccountingSummary
   fifo.go                   RunFIFO
@@ -187,6 +189,7 @@ Spec: `docs/api/swagger.yaml`.
 ### Prices
 - `GET /api/v1/prices` — price snapshots (currency + date range)
 - `POST /api/v1/prices` — manual price entry
+- `POST /api/v1/prices/fetch` — auto-fetch missing prices from CoinGecko (`wallet_id`, `currency`); skips dates that already have any entry
 
 ### Reports
 - `GET /api/v1/wallets/{id}/reports/transactions` — transaction report (`format`: csv|pdf|xlsx)
