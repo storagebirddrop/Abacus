@@ -61,6 +61,7 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 		// Prices (Phase 3)
 		r.Get("/prices", ah.ListPrices)
 		r.Post("/prices", ah.CreatePrice)
+		r.Post("/prices/fetch", ah.FetchPrices)
 
 		// Reports (Phase 5)
 		r.Get("/wallets/{walletID}/reports/balance-sheet", rh.BalanceSheet)

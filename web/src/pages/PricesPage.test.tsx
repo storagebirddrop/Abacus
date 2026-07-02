@@ -6,13 +6,19 @@ import type { PriceSnapshot } from '../api/prices'
 vi.mock('../api/prices', () => ({
   listPrices: vi.fn(),
   createPrice: vi.fn(),
+  fetchPricesFromCoinGecko: vi.fn(),
+}))
+vi.mock('../api/wallets', () => ({
+  listWallets: vi.fn(),
 }))
 
 import { listPrices, createPrice } from '../api/prices'
+import { listWallets } from '../api/wallets'
 import PricesPage from './PricesPage'
 
 const listMock = listPrices as unknown as Mock
 const createMock = createPrice as unknown as Mock
+const listWalletsMock = listWallets as unknown as Mock
 
 function price(over: Partial<PriceSnapshot> = {}): PriceSnapshot {
   return {
@@ -24,6 +30,10 @@ function price(over: Partial<PriceSnapshot> = {}): PriceSnapshot {
 beforeEach(() => {
   listMock.mockReset()
   createMock.mockReset()
+  listWalletsMock.mockReset()
+  // CoinGeckoFetchPanel calls listWallets on mount; return empty so the panel
+  // renders without a wallet selector (and makes no further API calls).
+  listWalletsMock.mockResolvedValue([])
 })
 afterEach(() => vi.restoreAllMocks())
 

@@ -241,4 +241,28 @@ func scanTransaction(s scanner) (*domain.Transaction, error) {
 	return &t, nil
 }
 
+// ListBlockTimes returns the distinct confirmed block times for a wallet, ordered
+// ascending. Used by the price-fetch flow to know which dates need coverage.
+func (r *TransactionRepo) ListBlockTimes(ctx context.Context, walletID string) ([]time.Time, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT DISTINCT block_time FROM transactions
+		 WHERE wallet_id=? AND confirmed=1 AND block_time>0
+		 ORDER BY block_time ASC`,
+		walletID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var times []time.Time
+	for rows.Next() {
+		var ts int64
+		if err := rows.Scan(&ts); err != nil {
+			return nil, err
+		}
+		times = append(times, time.Unix(ts, 0).UTC())
+	}
+	return times, rows.Err()
+}
+
 func (r *TransactionRepo) DB() *sql.DB { return r.db }

@@ -21,3 +21,14 @@ export const createPrice = (data: {
   source?: string
   timestamp: number
 }) => apiFetch<PriceSnapshot>('/prices', { method: 'POST', body: JSON.stringify(data) })
+
+export interface FetchResult {
+  fetched: number
+  skipped: number
+}
+
+export const fetchPricesFromCoinGecko = (walletID: string, currency: string) =>
+  apiFetch<FetchResult>('/prices/fetch', {
+    method: 'POST',
+    body: JSON.stringify({ wallet_id: walletID, currency }),
+  })
