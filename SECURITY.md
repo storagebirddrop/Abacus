@@ -23,7 +23,9 @@ Understanding the model helps scope reports:
   backend is recommended. (See the Settings page and `README` → Privacy.)
 - **Local-first.** The default deployment assumes a single user on localhost.
   Optional `API_TOKEN` bearer auth and per-IP rate limiting (`RATE_LIMIT_RPM`)
-  exist for deployments exposed beyond localhost — see `.env.example`.
+  exist for deployments exposed beyond localhost — see `.env.example`. Generate
+  `API_TOKEN` with a CSPRNG (`openssl rand -hex 32`); a short or guessable
+  value defeats the auth check entirely.
 - **Reverse proxies.** Per-IP rate limiting uses the TCP peer address by
   default, so behind a proxy every request appears to come from the proxy and
   shares one bucket. Set `TRUST_PROXY=true` to derive the client IP from
