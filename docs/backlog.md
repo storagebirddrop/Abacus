@@ -6,28 +6,27 @@
 A first independent product audit drove a round of remediation, and the
 **Second Batch** that followed is now entirely landed. A **second independent audit**
 drove the **Third Batch**, which is also now largely complete. The remaining open
-items are listed below.
+items are listed below (last verified against the code on 2026-07-02).
 
 ---
 
 # Open Items
 
 ## Medium / nice-to-have
-- [ ] **`PricesPage` stale data on currency switch** — on a failed refetch the old
-  currency's rows remain under the spinner; clear before refetch. *Unverified.*
 - [ ] **`AbortController` on data fetches** — rapid wallet/tab navigation can let a
   stale response overwrite current state. Low impact for single-user, but real.
+  *Verified still open — no `AbortController` usage anywhere in `web/src`.*
 - [ ] **Uncleared `setTimeout`s** — Toast + SettingsPage "Saved" timers aren't
   cleared on unmount (harmless at app root, but tidy with cleanup).
-- [ ] **Accessibility nits** — delete buttons missing `aria-label`; timezone not
-  indicated on UTC `block_time` dates; no client-side descriptor validation.
+- [ ] **Timezone not indicated on dates** — `block_time` etc. render via
+  `toLocaleDateString()` with no timezone label.
+- [ ] **No client-side descriptor validation** — invalid descriptors are only
+  caught server-side.
 - [ ] **Test coverage gaps** — `internal/sync/service.go` (the sync loop, context
-  handling, job-status transitions) and the sync handlers are untested; most
-  repos lack wallet-not-found negative tests; ~10 page components untested
-  (`WalletPage`, the tabs, `ExportBar`).
-- [ ] **`CODEOWNERS` granularity + SECURITY.md SLA** — add per-module owners for
-  `accounting`/`sync`/`importer`/`middleware`; document a vuln-response window.
-- [ ] **`listWallets()` null handling / unused type imports** — minor; lint-level.
+  handling, job-status transitions) still has no test file (only
+  `internal/sync/derive_test.go` and the 4 handler-level 404 tests in
+  `internal/api/sync_test.go` exist); most repos lack wallet-not-found negative
+  tests; ~10 page components untested (`WalletPage`, the tabs, `ExportBar`).
 
 ## Carried over
 - [ ] **Tax constants by-year audit** — NL Box 3 methodology, UK annual exempt
@@ -42,10 +41,23 @@ items are listed below.
   with a JSON-RPC client (`getaddresstxids` / `scantxoutset`) and wire it into
   `main.go` and `settings.go`.
 
-## Manual / requires maintainer action
-- [ ] **`v0.1.0` AppImage release** — push the `v0.1.0` tag from a local machine;
-  the release workflow builds and publishes the signed AppImage. The CI token
-  cannot push tags (403).
+## Already done — checked off in an accuracy pass (2026-07-02)
+Verified against the code; these had landed but were left unchecked:
+- [x] **Delete-button `aria-label`** — `aria-label={\`Delete wallet ${w.name}\`}`
+  in `WalletsPage.tsx`.
+- [x] **`CODEOWNERS` granularity** — per-module owners added for
+  `accounting`/`reports`/`ledger`/`sync`/`importer`/`middleware.go`/`migrations`.
+- [x] **SECURITY.md vuln-response window** — "we aim to acknowledge reports
+  within a few days" is present.
+- [x] **`PricesPage` stale data on currency switch** — `load()` clears
+  `prices`/`error` before refetching (PR #64).
+- [x] **`listWallets()` null handling** — already defensive (`data ?? []`); the
+  API also never returns `null`. Non-issue.
+- [x] **Unused type imports** — would fail `npm run lint` (oxlint) in CI; none
+  present.
+- [x] **`v0.1.0` AppImage release** — done; see Release & Housekeeping below.
+  (This item was duplicated/contradicted itself in this file — listed both
+  open here and done further down. Removed the stale duplicate.)
 
 ---
 
