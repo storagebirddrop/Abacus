@@ -25,13 +25,15 @@ const (
 )
 
 // LedgerEntry is immutable — never updated after creation.
+// Exactly one of TransactionID or ExchangeTradeID is non-empty.
 type LedgerEntry struct {
 	ID               string    `json:"id"`
 	WalletID         string    `json:"wallet_id"`
-	TransactionID    string    `json:"transaction_id"`
+	TransactionID    string    `json:"transaction_id,omitempty"`
+	ExchangeTradeID  string    `json:"exchange_trade_id,omitempty"`
 	Type             EntryType `json:"type"`
 	Sats             int64     `json:"sats"`
-	FiatAmount       int64     `json:"fiat_amount"`  // stored as cents
+	FiatAmount       int64     `json:"fiat_amount"`   // stored as cents
 	FiatCurrency     string    `json:"fiat_currency"` // e.g. "EUR"
 	PriceSnapshotID  string    `json:"price_snapshot_id,omitempty"`
 	Category         Category  `json:"category"`

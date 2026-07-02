@@ -38,7 +38,7 @@ export const listWallets = () => apiFetch<Wallet[]>('/wallets')
 
 export const getWallet = (id: string) => apiFetch<Wallet>(`/wallets/${id}`)
 
-export const createWallet = (data: { name: string; descriptor: string }) =>
+export const createWallet = (data: { name: string; descriptor: string; source?: string }) =>
   apiFetch<Wallet>('/wallets', {
     method: 'POST',
     body: JSON.stringify(data),

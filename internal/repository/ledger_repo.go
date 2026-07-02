@@ -22,11 +22,11 @@ func (r *LedgerRepo) InsertWithTx(ctx context.Context, tx *sql.Tx, e *domain.Led
 	}
 	_, err := tx.ExecContext(ctx,
 		`INSERT OR IGNORE INTO ledger_entries
-		 (id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
+		 (id, wallet_id, transaction_id, exchange_trade_id, type, sats, fiat_amount, fiat_currency,
 		  price_snapshot_id, category, counterparty_id, note, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.ID, e.WalletID, e.TransactionID, string(e.Type),
-		e.Sats, e.FiatAmount, e.FiatCurrency,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.WalletID, nullString(e.TransactionID), nullString(e.ExchangeTradeID),
+		string(e.Type), e.Sats, e.FiatAmount, e.FiatCurrency,
 		nullString(e.PriceSnapshotID), string(e.Category),
 		nullString(e.CounterpartyID), e.Note, e.CreatedAt.Unix(),
 	)
@@ -40,7 +40,8 @@ func (r *LedgerRepo) ListByWallet(ctx context.Context, walletID string, limit, o
 		return nil, 0, err
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
+		`SELECT id, wallet_id, COALESCE(transaction_id,''), COALESCE(exchange_trade_id,''),
+		        type, sats, fiat_amount, fiat_currency,
 		        COALESCE(price_snapshot_id,''), category, COALESCE(counterparty_id,''), note, created_at
 		 FROM ledger_entries WHERE wallet_id=?
 		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
@@ -63,7 +64,8 @@ func (r *LedgerRepo) ListByWallet(ctx context.Context, walletID string, limit, o
 // ListByTransaction returns all ledger entries for a specific transaction within a wallet.
 func (r *LedgerRepo) ListByTransaction(ctx context.Context, walletID, transactionID string) ([]*domain.LedgerEntry, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
+		`SELECT id, wallet_id, COALESCE(transaction_id,''), COALESCE(exchange_trade_id,''),
+		        type, sats, fiat_amount, fiat_currency,
 		        COALESCE(price_snapshot_id,''), category, COALESCE(counterparty_id,''), note, created_at
 		 FROM ledger_entries WHERE wallet_id=? AND transaction_id=?
 		 ORDER BY created_at ASC`,
@@ -94,7 +96,8 @@ func (r *LedgerRepo) UpdateMetadata(ctx context.Context, tx *sql.Tx, id string, 
 
 func (r *LedgerRepo) GetByID(ctx context.Context, id string) (*domain.LedgerEntry, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, wallet_id, transaction_id, type, sats, fiat_amount, fiat_currency,
+		`SELECT id, wallet_id, COALESCE(transaction_id,''), COALESCE(exchange_trade_id,''),
+		        type, sats, fiat_amount, fiat_currency,
 		        COALESCE(price_snapshot_id,''), category, COALESCE(counterparty_id,''), note, created_at
 		 FROM ledger_entries WHERE id=?`, id)
 	return scanLedgerEntry(row)
@@ -105,7 +108,7 @@ func scanLedgerEntry(s scanner) (*domain.LedgerEntry, error) {
 	var createdUnix int64
 	var entryType, category string
 	err := s.Scan(
-		&e.ID, &e.WalletID, &e.TransactionID, &entryType,
+		&e.ID, &e.WalletID, &e.TransactionID, &e.ExchangeTradeID, &entryType,
 		&e.Sats, &e.FiatAmount, &e.FiatCurrency,
 		&e.PriceSnapshotID, &category, &e.CounterpartyID, &e.Note, &createdUnix,
 	)

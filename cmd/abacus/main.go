@@ -16,12 +16,17 @@ import (
 	"github.com/storagebirddrop/abacus/internal/api"
 	"github.com/storagebirddrop/abacus/internal/config"
 	"github.com/storagebirddrop/abacus/internal/importer"
+	"github.com/storagebirddrop/abacus/internal/importer/bitvavo"
+	"github.com/storagebirddrop/abacus/internal/importer/bitonic"
+	"github.com/storagebirddrop/abacus/internal/importer/coinbase"
 	"github.com/storagebirddrop/abacus/internal/importer/coldcard"
 	"github.com/storagebirddrop/abacus/internal/importer/descriptor"
 	"github.com/storagebirddrop/abacus/internal/importer/electrum"
+	"github.com/storagebirddrop/abacus/internal/importer/kraken"
 	"github.com/storagebirddrop/abacus/internal/importer/nunchuk"
 	"github.com/storagebirddrop/abacus/internal/importer/sparrow"
 	"github.com/storagebirddrop/abacus/internal/importer/specter"
+	"github.com/storagebirddrop/abacus/internal/importer/strike"
 	"github.com/storagebirddrop/abacus/internal/repository"
 	abacussync "github.com/storagebirddrop/abacus/internal/sync"
 	electrumbackend "github.com/storagebirddrop/abacus/internal/sync/electrum"
@@ -40,12 +45,18 @@ func main() {
 	defer stop()
 
 	// Register importers in priority order.
-	// Nunchuk first: claims BSMS files before Sparrow.
+	// Exchange importers first (specific CSV formats with unique header signatures).
+	// Nunchuk: claims BSMS files before Sparrow.
 	// Coldcard: JSON with "xfp" field (hardware signing device).
 	// Electrum: JSON with "wallet_type" + "keystore".
 	// Specter: JSON with "descriptor" but no "xfp" or "wallet_type".
 	// Sparrow: broad JSON/CSV catch-all.
 	// Generic descriptor: last-resort fallback for any JSON with a descriptor field.
+	importer.Register(bitvavo.New())
+	importer.Register(bitonic.New())
+	importer.Register(kraken.New())
+	importer.Register(coinbase.New())
+	importer.Register(strike.New())
 	importer.Register(nunchuk.New())
 	importer.Register(coldcard.New())
 	importer.Register(electrum.New())
@@ -79,6 +90,7 @@ func main() {
 	jobRepo := repository.NewImportJobRepo(db)
 	priceRepo := repository.NewPriceSnapshotRepo(db)
 	cbRepo := repository.NewCostBasisRepo(db)
+	exchangeTradeRepo := repository.NewExchangeTradeRepo(db)
 	syncJobRepo := repository.NewSyncJobRepo(db)
 	syncStateRepo := repository.NewSyncStateRepo(db)
 	settingsRepo := repository.NewSettingsRepo(db)
@@ -118,8 +130,8 @@ func main() {
 	}
 
 	// Services
-	importSvc := importer.NewService(db, walletRepo, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo)
-	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo)
+	importSvc := importer.NewService(db, walletRepo, txRepo, labelRepo, ledgerRepo, utxoRepo, jobRepo, exchangeTradeRepo)
+	accountingSvc := accounting.NewService(db, utxoRepo, cbRepo, priceRepo, txRepo, exchangeTradeRepo)
 	syncSvc := abacussync.NewService(ctx, db, walletRepo, txRepo, ledgerRepo, utxoRepo, syncJobRepo, syncStateRepo, backendFactory)
 
 	// Frontend FS: use FRONTEND_DIR env var for dev (disk); otherwise embedded.
