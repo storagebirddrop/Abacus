@@ -129,7 +129,7 @@ Tracks the state of a blockchain sync operation.
 | Field | Type | Description |
 |---|---|---|
 | wallet_id | UUID | Reference to Wallet |
-| backend | string | `esplora` \| `electrum` \| `bitcoincore` |
+| backend | string | `esplora` \| `electrum` |
 | status | enum | `pending` \| `running` \| `done` \| `failed` |
 | addresses_scanned | int | Number of addresses queried |
 | tx_found | int | Number of transactions discovered |

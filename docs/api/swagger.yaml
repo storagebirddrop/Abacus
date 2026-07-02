@@ -1,12 +1,13 @@
 openapi: 3.1.0
 info:
   title: Abacus Bitcoin Accounting Engine API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Self-hosted Bitcoin accounting engine.
     Import wallet data from Sparrow, Nunchuk, Coldcard, Specter Desktop,
     Electrum, or any device exporting a standard output descriptor.
-    Build an immutable ledger and run FIFO/Average Cost accounting.
+    Build an immutable ledger and run FIFO, Average Cost, LIFO, HIFO,
+    Specific Identification, or UK Section 104 accounting.
     Export reports as CSV, PDF, or Excel.
   license:
     name: MIT
@@ -26,6 +27,9 @@ tags:
   - name: labels
   - name: prices
   - name: reports
+  - name: sync
+  - name: portfolio
+  - name: settings
 
 paths:
   /health:
@@ -45,7 +49,7 @@ paths:
                     example: ok
                   version:
                     type: string
-                    example: 0.1.0
+                    example: 0.2.0
 
   /version:
     get:
@@ -77,7 +81,11 @@ paths:
                   $ref: "#/components/schemas/Wallet"
     post:
       tags: [wallets]
-      summary: Create wallet from descriptor or BSMS
+      summary: Create a wallet
+      description: |
+        Creates a wallet record. `name` is the only required field.
+        `descriptor` may be omitted when the wallet will receive its
+        descriptor via a subsequent file import (BSMS, Coldcard export, etc.).
       requestBody:
         required: true
         content:
@@ -111,7 +119,7 @@ paths:
           $ref: "#/components/responses/NotFound"
     delete:
       tags: [wallets]
-      summary: Remove wallet (soft delete)
+      summary: Remove wallet and all associated data
       responses:
         "204":
           description: Deleted
@@ -131,6 +139,7 @@ paths:
         - Specter Desktop: JSON descriptor export
         - Electrum: JSON wallet export (unencrypted only)
         - Generic: any JSON with a "descriptor" or "desc" field (Jade, Passport, SeedSigner, etc.)
+        Upload cap: 32 MiB.
       requestBody:
         required: true
         content:
@@ -219,7 +228,10 @@ paths:
     get:
       tags: [transactions]
       summary: List transactions
-      description: Paginated, with optional server-side search, status filter, and sort.
+      description: |
+        Paginated, with optional server-side search, status filter, and sort.
+        Each transaction is enriched with `net_sats` (signed BTC balance change)
+        and `category` derived from the wallet's ledger entries.
       responses:
         "200":
           description: Paginated transactions
@@ -308,38 +320,61 @@ paths:
               properties:
                 method:
                   type: string
-                  enum: [fifo, avgcost]
+                  enum: [fifo, avgcost, lifo, hifo, specificid, section104]
                   default: fifo
+                  description: |
+                    Cost basis method.
+                    `section104` implements UK HMRC TCGA 1992 s.104/105/106A
+                    (same-day rule → 30-day rule → pool).
                 currency:
                   type: string
                   default: EUR
       responses:
         "200":
           description: Calculation complete; returns accounting summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountingSummary"
 
   /wallets/{walletID}/accounting/summary:
     parameters:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [accounting]
-      summary: Portfolio summary
+      summary: Get last accounting summary for wallet
       responses:
         "200":
-          description: Summary with balance, cost basis, unrealized gain
+          description: Summary with balance, cost basis, unrealised gain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountingSummary"
 
   /wallets/{walletID}/accounting/cost-basis:
     parameters:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [accounting]
-      summary: Per-UTXO cost basis
+      summary: Per-UTXO cost basis records
       responses:
         "200":
           description: Cost basis records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CostBasisRecord"
 
   /wallets/{walletID}/utxos:
     parameters:
       - $ref: "#/components/parameters/WalletID"
+      - name: unspent
+        in: query
+        description: If true, return only unspent UTXOs.
+        schema:
+          type: boolean
     get:
       tags: [utxos]
       summary: UTXO set
@@ -369,10 +404,20 @@ paths:
         "201":
           description: Label created
 
+  /wallets/{walletID}/labels/export:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [labels]
+      summary: Export all labels as BIP329 JSON-Lines (.jsonl)
+      responses:
+        "200":
+          description: BIP329 JSONL file download
+
   /prices:
     get:
       tags: [prices]
-      summary: Historical BTC prices
+      summary: List historical BTC price snapshots
       parameters:
         - name: currency
           in: query
@@ -382,29 +427,91 @@ paths:
         - name: from
           in: query
           schema:
-            type: integer
-            description: Unix timestamp
+            type: string
+            format: date
+            example: "2024-01-01"
         - name: to
           in: query
           schema:
-            type: integer
-            description: Unix timestamp
+            type: string
+            format: date
+            example: "2024-12-31"
       responses:
         "200":
           description: Price snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceSnapshot"
     post:
       tags: [prices]
-      summary: Add manual price entry
+      summary: Add a manual price entry
+      description: Stores a BTC/fiat price. Use `source` to identify the origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePriceRequest"
       responses:
         "201":
           description: Price recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceSnapshot"
 
-  /wallets/{walletID}/reports/balance-sheet:
+  /prices/fetch:
+    post:
+      tags: [prices]
+      summary: Auto-fetch missing prices from CoinGecko
+      description: |
+        Reads all confirmed transaction dates for the given wallet, calls the
+        CoinGecko market_chart/range API once to cover the full date span, and
+        inserts a price snapshot for each date that does not already have one.
+        Existing entries (manual or automated) are never overwritten.
+        When two entries exist for the same date, `source=manual` takes
+        precedence in accounting lookups.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wallet_id]
+              properties:
+                wallet_id:
+                  type: string
+                currency:
+                  type: string
+                  default: EUR
+      responses:
+        "200":
+          description: Fetch complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fetched:
+                    type: integer
+                    description: Number of new price snapshots inserted
+                  skipped:
+                    type: integer
+                    description: Number of dates skipped (already had a price)
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          description: CoinGecko request failed (rate limit or network error)
+
+  /wallets/{walletID}/reports/transactions:
     parameters:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [reports]
-      summary: Balance sheet report (unspent UTXOs + cost basis)
+      summary: Transaction report export
       parameters:
         - name: format
           in: query
@@ -419,7 +526,7 @@ paths:
             default: EUR
       responses:
         "200":
-          description: Report file download
+          description: Report file download (Content-Disposition attachment)
 
   /wallets/{walletID}/reports/pnl:
     parameters:
@@ -455,12 +562,12 @@ paths:
         "200":
           description: Report file download
 
-  /wallets/{walletID}/reports/transactions:
+  /wallets/{walletID}/reports/balance-sheet:
     parameters:
       - $ref: "#/components/parameters/WalletID"
     get:
       tags: [reports]
-      summary: Transaction report export
+      summary: Balance sheet report (unspent UTXOs + cost basis)
       parameters:
         - name: format
           in: query
@@ -475,7 +582,139 @@ paths:
             default: EUR
       responses:
         "200":
-          description: Report file download (Content-Disposition attachment)
+          description: Report file download
+
+  /wallets/{walletID}/reports/tax:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [reports]
+      summary: Jurisdiction-specific tax report
+      parameters:
+        - name: jurisdiction
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [nl, de, uk, us]
+            description: |
+              nl = Netherlands Box 3 (Wet IB 2001 Art. 5.2)
+              de = Germany §23 EStG
+              uk = UK HMRC CGT SA108 (Section 104)
+              us = US IRS Form 8949
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2024
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, pdf]
+            default: csv
+      responses:
+        "200":
+          description: Tax report file download
+
+  /wallets/{walletID}/sync:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    post:
+      tags: [sync]
+      summary: Start a blockchain sync job
+      description: |
+        Derives addresses from the wallet's output descriptor and fetches
+        transaction history from the configured blockchain backend
+        (Esplora or Electrum). Sync must be enabled in Settings first.
+      responses:
+        "202":
+          description: Sync job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+
+  /wallets/{walletID}/sync-jobs:
+    parameters:
+      - $ref: "#/components/parameters/WalletID"
+    get:
+      tags: [sync]
+      summary: List sync jobs for wallet
+      responses:
+        "200":
+          description: Sync jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyncJob"
+
+  /sync-jobs/{jobID}:
+    parameters:
+      - name: jobID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [sync]
+      summary: Get sync job status
+      responses:
+        "200":
+          description: Sync job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncJob"
+
+  /portfolio/summary:
+    get:
+      tags: [portfolio]
+      summary: Cross-wallet portfolio summary
+      description: |
+        Aggregates accounting results across all wallets. Returns totals
+        and per-wallet breakdown. Requires accounting to have been run on
+        at least one wallet.
+      responses:
+        "200":
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioSummary"
+
+  /settings:
+    get:
+      tags: [settings]
+      summary: Get current settings
+      description: Returns all settings with their active values and defaults.
+      responses:
+        "200":
+          description: Settings map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      tags: [settings]
+      summary: Update settings
+      description: |
+        Updates any subset of settings. No restart required.
+        Blockchain sync settings take effect on the next sync job.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: Updated settings
 
 components:
   parameters:
@@ -546,13 +785,16 @@ components:
 
     CreateWalletRequest:
       type: object
-      required: [name, descriptor]
+      required: [name]
       properties:
         name:
           type: string
         descriptor:
           type: string
-          description: Output descriptor or BSMS content
+          description: |
+            Output descriptor or BSMS content. Optional — may be omitted when
+            the descriptor will be populated via a subsequent file import
+            (e.g. BSMS, Coldcard export, Sparrow JSON).
         network:
           type: string
           enum: [mainnet, testnet, signet]
@@ -594,6 +836,8 @@ components:
           type: string
         block_height:
           type: integer
+        block_hash:
+          type: string
         block_time:
           type: string
           format: date-time
@@ -601,6 +845,34 @@ components:
           type: integer
         confirmed:
           type: boolean
+        created_at:
+          type: string
+          format: date-time
+        net_sats:
+          type: integer
+          description: |
+            Signed BTC balance change in satoshis (positive = received,
+            negative = sent). Derived from ledger entries; present on list
+            responses, absent on single-transaction detail.
+        category:
+          type: string
+          description: |
+            Transaction category derived from the wallet's ledger entries.
+            Present on list responses, absent on single-transaction detail.
+          enum:
+            - unknown
+            - income
+            - expense
+            - transfer
+            - exchange
+            - mining
+            - donation
+            - salary
+            - gift
+            - coinjoin
+            - lightning
+            - correction
+            - fee
 
     TransactionDetail:
       allOf:
@@ -751,3 +1023,204 @@ components:
           type: boolean
         label:
           type: string
+
+    PriceSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        currency:
+          type: string
+          example: EUR
+        price_fiat:
+          type: integer
+          description: BTC price in fiat cents (e.g. 3000000 = €30,000.00)
+        source:
+          type: string
+          description: Origin of the price data
+          example: manual
+          enum: [manual, coingecko]
+        timestamp:
+          type: string
+          format: date-time
+
+    CreatePriceRequest:
+      type: object
+      required: [currency, price_fiat, timestamp]
+      properties:
+        currency:
+          type: string
+          example: EUR
+        price_fiat:
+          type: integer
+          description: BTC price in fiat cents
+          example: 3000000
+        source:
+          type: string
+          default: manual
+        timestamp:
+          type: integer
+          description: Unix epoch seconds
+
+    AccountingSummary:
+      type: object
+      properties:
+        wallet_id:
+          type: string
+        method:
+          type: string
+          enum: [fifo, avgcost, lifo, hifo, specificid, section104]
+        fiat_currency:
+          type: string
+        total_cost_sats:
+          type: integer
+        total_cost_fiat:
+          type: integer
+          description: Total cost basis in cents
+        unrealised_gain_fiat:
+          type: integer
+          description: Unrealised gain/loss in cents
+        realised_gain_fiat:
+          type: integer
+          description: Realised gain/loss in cents
+        computed_at:
+          type: string
+          format: date-time
+
+    CostBasisRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        txid:
+          type: string
+        vout:
+          type: integer
+        sats:
+          type: integer
+        method:
+          type: string
+          enum: [fifo, avgcost, lifo, hifo, specificid, section104]
+        fiat_currency:
+          type: string
+        acquired_at:
+          type: string
+          format: date-time
+        disposed_at:
+          type: string
+          format: date-time
+          nullable: true
+        cost_fiat:
+          type: integer
+          description: Acquisition cost in cents
+        proceeds_fiat:
+          type: integer
+          description: Disposal proceeds in cents (null if still held)
+          nullable: true
+        gain_fiat:
+          type: integer
+          description: Realised gain/loss in cents (null if still held)
+          nullable: true
+
+    SyncJob:
+      type: object
+      properties:
+        id:
+          type: string
+        wallet_id:
+          type: string
+        backend:
+          type: string
+          enum: [esplora, electrum]
+        status:
+          type: string
+          enum: [pending, running, done, failed]
+        addresses_scanned:
+          type: integer
+        tx_found:
+          type: integer
+        error_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PortfolioSummary:
+      type: object
+      properties:
+        wallet_count:
+          type: integer
+        total_sats:
+          type: integer
+        total_cost_fiat:
+          type: integer
+          description: Total cost basis across all wallets in cents
+        unrealised_gain_fiat:
+          type: integer
+        realised_gain_fiat:
+          type: integer
+        computed_at:
+          type: string
+          format: date-time
+          nullable: true
+        wallets:
+          type: array
+          items:
+            type: object
+            properties:
+              wallet_id:
+                type: string
+              wallet_name:
+                type: string
+              method:
+                type: string
+              fiat_currency:
+                type: string
+              total_sats:
+                type: integer
+              total_cost_fiat:
+                type: integer
+              unrealised_gain_fiat:
+                type: integer
+              realised_gain_fiat:
+                type: integer
+
+    Settings:
+      type: object
+      description: |
+        All fields are optional on PATCH — only supplied keys are updated.
+        Blockchain sync is disabled by default and must be explicitly enabled.
+        Enabling it will disclose wallet addresses to the configured backend server;
+        prefer a self-hosted Esplora or Electrum instance for privacy.
+      properties:
+        sync_enabled:
+          type: string
+          enum: ["true", "false"]
+          default: "false"
+        blockchain_backend:
+          type: string
+          enum: [esplora, electrum]
+          default: esplora
+        esplora_url:
+          type: string
+          default: https://mempool.space/api
+        esplora_rate_ms:
+          type: string
+          description: Milliseconds between Esplora requests (rate limiting)
+          default: "100"
+        electrum_host:
+          type: string
+          default: electrum.blockstream.info
+        electrum_port:
+          type: string
+          default: "50002"
+        electrum_tls:
+          type: string
+          enum: ["true", "false"]
+          default: "true"
