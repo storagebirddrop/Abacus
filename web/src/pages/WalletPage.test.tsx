@@ -11,6 +11,7 @@ vi.mock('../api/wallets', () => ({
   importWallet: vi.fn(),
   getImportJob: vi.fn(),
   listImportJobs: vi.fn(),
+  patchTransaction: vi.fn(),
 }))
 vi.mock('../api/accounting', () => ({
   getAccountingSummary: vi.fn(),
@@ -48,7 +49,8 @@ const wallet: Wallet = {
 function tx(over: Partial<Transaction> = {}): Transaction {
   return {
     id: 't1', wallet_id: 'w1', txid: 'a'.repeat(64), block_height: 800000,
-    block_time: '2024-03-01T00:00:00Z', fee_sats: 250, confirmed: true, ...over,
+    block_time: '2024-03-01T00:00:00Z', fee_sats: 250, confirmed: true,
+    net_sats: 100000, category: 'unknown', ...over,
   }
 }
 
@@ -148,7 +150,7 @@ describe('WalletPage', () => {
 
   it('starts a blockchain sync', async () => {
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Sync' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Sync from Blockchain' }))
 
     await waitFor(() => expect(m.startSync).toHaveBeenCalledWith('w1'))
@@ -175,10 +177,10 @@ describe('WalletPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('history down')
   })
 
-  it('surfaces a sync-history load failure on the Sync tab', async () => {
+  it('surfaces a sync-history load failure on the Advanced tab', async () => {
     m.listSyncJobs.mockRejectedValue(new Error('sync down'))
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Sync' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('sync down')
   })
 })
