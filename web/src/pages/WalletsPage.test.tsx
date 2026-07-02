@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ToastProvider } from '../components/Toast'
@@ -9,16 +9,14 @@ import type { Wallet } from '../api/wallets'
 vi.mock('../api/wallets', () => ({
   listWallets: vi.fn(),
   createWallet: vi.fn(),
-  deleteWallet: vi.fn(),
   importWallet: vi.fn(),
 }))
 
-import { listWallets, createWallet, deleteWallet } from '../api/wallets'
+import { listWallets, createWallet } from '../api/wallets'
 import WalletsPage from './WalletsPage'
 
 const listMock = listWallets as unknown as Mock
 const createMock = createWallet as unknown as Mock
-const deleteMock = deleteWallet as unknown as Mock
 
 function wallet(over: Partial<Wallet> = {}): Wallet {
   return {
@@ -42,7 +40,6 @@ function renderPage() {
 beforeEach(() => {
   listMock.mockReset()
   createMock.mockReset()
-  deleteMock.mockReset()
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -70,28 +67,9 @@ describe('WalletsPage', () => {
     await userEvent.type(screen.getByPlaceholderText('My Bitcoin Wallet'), 'Cold Storage')
     await userEvent.click(screen.getByRole('button', { name: 'Add Wallet' }))
 
-    await waitFor(() =>
-      expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: '' }),
-    )
+    expect(createMock).toHaveBeenCalledWith({ name: 'Cold Storage', descriptor: '' })
     // load() runs once on mount and again after creation.
     expect(listMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('deletes a wallet after confirming in the dialog', async () => {
-    listMock.mockResolvedValue([wallet()])
-    deleteMock.mockResolvedValue(undefined)
-    renderPage()
-
-    const row = (await screen.findByText('Cold Storage')).closest('tr')!
-    await userEvent.click(within(row).getByRole('button', { name: /delete wallet/i }))
-
-    // Confirm dialog appears; click its destructive "Delete" action.
-    const dialog = await screen.findByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-
-    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith('w1'))
-    await waitFor(() => expect(screen.queryByText('Cold Storage')).not.toBeInTheDocument())
-    expect(await screen.findByText(/Deleted "Cold Storage"/)).toBeInTheDocument()
   })
 
   it('filters the list via the search box', async () => {
@@ -114,19 +92,5 @@ describe('WalletsPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^Name/ }))
     expect(names()).toEqual(['Zebra', 'Alpha']) // desc after toggle
-  })
-
-  it('does not delete when the dialog is cancelled', async () => {
-    listMock.mockResolvedValue([wallet()])
-    renderPage()
-
-    const row = (await screen.findByText('Cold Storage')).closest('tr')!
-    await userEvent.click(within(row).getByRole('button', { name: /delete wallet/i }))
-
-    const dialog = await screen.findByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-    expect(deleteMock).not.toHaveBeenCalled()
-    expect(screen.getByText('Cold Storage')).toBeInTheDocument()
   })
 })

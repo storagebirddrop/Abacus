@@ -5,7 +5,7 @@ import { cn } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 
 const navItems = [
-  { to: '/wallets', label: 'Wallets' },
+  { to: '/', label: 'Portfolio' },
   { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings' },
 ]
@@ -70,6 +70,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/'}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 cn(
