@@ -7,6 +7,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Exchange account imports** — five new exchange importers: Bitvavo, Bitonic,
+  Kraken (ledger CSV with refid-pairing), Coinbase, and Strike (Lightning +
+  trades). Upload a CSV export from any of these exchanges to import buy/sell/
+  deposit/withdrawal/lightning_receive/lightning_send trades.
+- `ExchangeTrade` domain entity and `exchange_trades` table (migration 006);
+  `ledger_entries.transaction_id` made nullable with a new `exchange_trade_id`
+  FK so exchange trades appear in the transaction history.
+- `RunExchangeFIFO` accounting engine: FIFO lot-matching with partial-lot
+  splitting for exchange trade histories; fiat cost/proceeds recorded at
+  trade time (no external price lookup needed).
+- Frontend **Add Wallet** dialog now has a wallet-type toggle — choose
+  "On-chain wallet" (existing flow) or "Exchange account" (selects exchange
+  from a dropdown, hides descriptor field).
+- Shared CSV helpers (`ParseBTCSats`, `ParseFiatCents`) in
+  `internal/importer/common/exchange_csv.go`.
+
 ### Changed
 - Documentation: version-history accuracy pass (CHANGELOG entries for
   0.1.1/0.1.2, dead `VERSION` env var removed, stale version references in

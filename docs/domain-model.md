@@ -7,7 +7,9 @@ Wallet ──┬── Address (many)
          ├── Transaction ──┬── TransactionInput (many)
          │                 └── TransactionOutput (many)
          ├── UTXO (many)
+         ├── ExchangeTrade (many)          ← exchange wallets only
          ├── LedgerEntry ──── JournalEntry (many, audit trail)
+         │        │  └──────── linked to Transaction OR ExchangeTrade
          │        └───────── CostBasisRecord (one, after accounting run)
          ├── Label (many, BIP329)
          ├── Counterparty (many)
@@ -31,7 +33,7 @@ The root entity. Represents a Bitcoin wallet defined by its output descriptor.
 | fingerprint | string | Master key fingerprint |
 | type | enum | `singlesig` \| `multisig` |
 | network | enum | `mainnet` \| `testnet` \| `signet` |
-| source | enum | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `manual` |
+| source | enum | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `manual` \| `exchange` |
 
 ### Transaction
 An immutable record of a confirmed or unconfirmed Bitcoin transaction.
@@ -54,11 +56,33 @@ An unspent transaction output. Tracks spending state.
 | spent_txid | string | Spending transaction |
 | label | string | User label |
 
-### LedgerEntry ⚠️ Immutable
-The core accounting record. **Never updated after creation.**
+### ExchangeTrade
+A buy, sell, deposit, withdrawal, or Lightning payment on a custodial exchange.
+One trade = one row; fiat value is recorded at trade time (no price lookup needed).
 
 | Field | Type | Description |
 |---|---|---|
+| id | UUID | Primary key |
+| wallet_id | UUID | Reference to Wallet |
+| trade_type | enum | `buy` \| `sell` \| `fee` \| `deposit` \| `withdrawal` \| `lightning_receive` \| `lightning_send` |
+| exchange | string | `bitvavo` \| `bitonic` \| `kraken` \| `coinbase` \| `strike` |
+| external_id | string | Exchange's own order/trade ID (dedup key, nullable) |
+| traded_at | timestamp | When the trade occurred |
+| sats | int | BTC side in satoshis |
+| fiat_amount | int | Fiat side in cents (absolute value) |
+| fiat_currency | string | ISO currency (EUR, USD, …) |
+| fee_sats | int | Fee in satoshis (0 if N/A) |
+| fee_fiat | int | Fee in fiat cents (0 if N/A) |
+| note | string | Notes from export |
+
+### LedgerEntry ⚠️ Immutable
+The core accounting record. **Never updated after creation.**
+Linked to either a `Transaction` (on-chain) or an `ExchangeTrade` (custodial), never both.
+
+| Field | Type | Description |
+|---|---|---|
+| transaction_id | UUID? | Reference to Transaction (nullable) |
+| exchange_trade_id | UUID? | Reference to ExchangeTrade (nullable) |
 | type | enum | `debit` \| `credit` |
 | sats | int | Amount in satoshis |
 | fiat_amount | int | Amount in cents |
@@ -117,7 +141,7 @@ Tracks the state of a file import operation.
 
 | Field | Type | Description |
 |---|---|---|
-| source | string | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `bip329` \| `descriptor` |
+| source | string | `sparrow` \| `nunchuk` \| `coldcard` \| `specter` \| `electrum` \| `bsms` \| `bip329` \| `descriptor` \| `bitvavo` \| `bitonic` \| `kraken` \| `coinbase` \| `strike` |
 | filename | string | Original filename |
 | status | enum | `pending` \| `running` \| `done` \| `failed` |
 | records_imported | int | Count of imported records |

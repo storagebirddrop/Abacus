@@ -45,6 +45,11 @@
 │  Specter/     │
 │  Electrum/    │
 │  BIP329/BSMS  │
+│  Bitvavo/     │
+│  Bitonic/     │
+│  Kraken/      │
+│  Coinbase/    │
+│  Strike       │
 └────────┬──────┘
          │
 ┌────────▼──────────────────────────────────────┐
@@ -61,8 +66,10 @@
 - Every wallet importer implements `WalletImporter`
 - Core never contains wallet-specific code
 - Auto-detection: upload any file, Abacus picks the right importer
-- Shared parsers in `internal/importer/common/` (BSMS, BIP329)
-- Supported: Sparrow, Nunchuk, Coldcard, Specter Desktop, Electrum, generic descriptor
+- Shared parsers in `internal/importer/common/` (BSMS, BIP329, exchange CSV helpers)
+- On-chain wallets: Sparrow, Nunchuk, Coldcard, Specter Desktop, Electrum, generic descriptor
+- Exchange accounts: Bitvavo, Bitonic, Kraken (ledger CSV with refid-pairing), Coinbase, Strike (Lightning + trades)
+- Exchange importers populate `ImportResult.Trades` ([]domain.ExchangeTrade) instead of Transactions/UTXOs
 
 ### Sync Layer
 - Derives addresses from output descriptor (wpkh, sh(wpkh), pkh)
@@ -83,8 +90,9 @@
 
 ### Accounting Engine
 - Pure functions — no side effects, no DB access
-- Input: UTXOs + spend times + price lookup
-- Output: `CostBasisRecord` per UTXO
+- On-chain path: input is UTXOs + spend times + price lookup; output is `CostBasisRecord` per UTXO
+- Exchange path: input is `[]ExchangeTrade`; `RunExchangeFIFO` does FIFO lot-matching with partial-lot splitting; fiat is recorded at trade time (no price lookup needed)
+- Auto-routing in `Service.Run()`: if exchange trades exist for the wallet → exchange path; otherwise → UTXO path
 - Methods: FIFO, Average Cost, LIFO, HIFO, Specific Identification, UK Section 104
 - UK Section 104 implements TCGA 1992 s.104/105/106A: same-day rule → 30-day rule → pool
 

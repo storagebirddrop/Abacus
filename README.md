@@ -19,6 +19,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 ## What Abacus does
 
 - Imports wallet data from **Sparrow**, **Nunchuk**, **Coldcard**, **Specter Desktop**, **Electrum**, and any wallet that exports a descriptor or BIP329 labels
+- Imports exchange transaction history from **Bitvavo**, **Bitonic**, **Kraken**, **Coinbase**, and **Strike** (Lightning + trades)
 - Builds an **immutable ledger** from your transaction history
 - Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
@@ -90,11 +91,12 @@ Open http://localhost:8080
 
 ## Import your wallet
 
+**On-chain wallets:**
 1. Export your wallet data from your wallet app
-2. Open Abacus → Wallets → Import
+2. Open Abacus → Wallets → Add Wallet → On-chain wallet
 3. Drag and drop a file onto the drop zone, or click to browse — Abacus detects the format automatically
 
-**Supported formats:**
+**Supported on-chain formats:**
 - Sparrow JSON wallet export, transaction CSV
 - Nunchuk JSON export
 - Coldcard `coldcard-export.json`
@@ -104,20 +106,36 @@ Open http://localhost:8080
 - BIP329 label files (`.jsonl`)
 - Any JSON with a `descriptor` or `desc` field (Jade, Passport, SeedSigner, etc.)
 
+**Exchange accounts:**
+1. Export your transaction history CSV from your exchange
+2. Open Abacus → Wallets → Add Wallet → Exchange account
+3. Select your exchange, upload the CSV — trades are imported automatically
+
+**Supported exchanges:**
+- Bitvavo
+- Bitonic
+- Kraken (Ledgers CSV export)
+- Coinbase (Transaction History CSV)
+- Strike (Transaction History CSV, Lightning + trades)
+
 ## Architecture
 
 ```
-Blockchain (Esplora / Electrum)
-    ↓
-Sync Layer (address derivation → tx fetch → persist)
-    ↓
-Importer (Sparrow / Nunchuk / Coldcard / Specter / Electrum / BIP329 / BSMS)
-    ↓
-Normalization (wallet-agnostic)
+Blockchain (Esplora / Electrum)         Exchange CSV exports
+    ↓                                       ↓
+Sync Layer (address derivation        Exchange Importers
+    → tx fetch → persist)             (Bitvavo / Bitonic /
+    ↓                                  Kraken / Coinbase /
+Importer (Sparrow / Nunchuk /          Strike)
+    Coldcard / Specter /                    ↓
+    Electrum / BIP329 / BSMS)         ExchangeTrade records
+    ↓                                       ↓
+Normalization (wallet-agnostic)  ──────────┘
     ↓
 Ledger Engine (immutable)
     ↓
-Accounting Engine (FIFO / AvgCost / LIFO / HIFO / SpecificID / Section 104)
+Accounting Engine (FIFO / AvgCost / LIFO / HIFO / SpecificID / Section 104
+                   + ExchangeFIFO for exchange wallets)
     ↓
 Report Engine (CSV / PDF / Excel / Tax Reports)
     ↓
@@ -172,6 +190,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Remote branch cleanup | ✅ |
 | Signed AppImage releases — see [Releases](https://github.com/storagebirddrop/Abacus/releases) for the latest | ✅ |
 | Drag-and-drop import zone in the UI | ✅ |
+| Exchange account imports (Bitvavo, Bitonic, Kraken, Coinbase, Strike) | ✅ |
 | Bitcoin Core sync backend | 🔲 |
 
 ## License
