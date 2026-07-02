@@ -49,7 +49,9 @@ localhost, two opt-in controls live on `/api/v1` (configured via `.env`):
 
 - `API_TOKEN` — require `Authorization: Bearer <token>` on all routes except
   `/health` and `/version`. The bundled web UI attaches this token once you save
-  it on the **Settings → API access** page (stored in the browser).
+  it on the **Settings → API access** page (stored in the browser). Generate a
+  strong value, e.g. `openssl rand -hex 32` — a short or guessable token
+  defeats the auth check entirely.
 - `RATE_LIMIT_RPM` — per-IP request cap per minute (default 600; `0` disables).
   Behind a reverse proxy, set `TRUST_PROXY=true` so the limiter uses the real
   client IP from `X-Forwarded-For`/`X-Real-IP` — **only** behind a trusted proxy,
