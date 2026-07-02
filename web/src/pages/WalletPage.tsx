@@ -63,7 +63,7 @@ export default function WalletPage() {
 
       {tab === 'transactions' && <TransactionsTab walletID={id} />}
       {tab === 'accounting' && <AccountingTab walletID={id} />}
-      {tab === 'advanced' && <AdvancedTab walletID={id} />}
+      {tab === 'advanced' && <AdvancedTab walletID={id} walletName={wallet?.name ?? ''} />}
     </div>
   )
 }

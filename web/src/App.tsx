@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
@@ -8,6 +8,7 @@ import WalletPage from './pages/WalletPage'
 import PricesPage from './pages/PricesPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import PortfolioPage from './pages/PortfolioPage'
 import NotFound from './pages/NotFound'
 
 const router = createBrowserRouter([
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     path: '/',
     element: <Layout />,
     children: [
-      { index: true, element: <Navigate to="/wallets" replace /> },
+      { index: true, element: <PortfolioPage /> },
       { path: 'wallets', element: <WalletsPage /> },
       { path: 'wallets/:id', element: <WalletPage /> },
       { path: 'reports', element: <ReportsPage /> },

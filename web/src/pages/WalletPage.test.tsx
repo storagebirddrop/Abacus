@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Wallet, Transaction, ImportJob } from '../api/wallets'
 import type { AccountingSummary } from '../api/accounting'
+import { ToastProvider } from '../components/Toast'
+import { ConfirmProvider } from '../components/ConfirmDialog'
 
 vi.mock('../api/wallets', () => ({
   getWallet: vi.fn(),
@@ -12,6 +14,7 @@ vi.mock('../api/wallets', () => ({
   getImportJob: vi.fn(),
   listImportJobs: vi.fn(),
   patchTransaction: vi.fn(),
+  deleteWallet: vi.fn(),
 }))
 vi.mock('../api/accounting', () => ({
   getAccountingSummary: vi.fn(),
@@ -24,7 +27,7 @@ vi.mock('../api/sync', () => ({
   listSyncJobs: vi.fn(),
 }))
 
-import { getWallet, listTransactions, importWallet, listImportJobs } from '../api/wallets'
+import { getWallet, listTransactions, importWallet, listImportJobs, deleteWallet } from '../api/wallets'
 import { getAccountingSummary, listCostBasis, runAccounting } from '../api/accounting'
 import { startSync, listSyncJobs } from '../api/sync'
 import WalletPage from './WalletPage'
@@ -34,6 +37,7 @@ const m = {
   listTransactions: listTransactions as unknown as Mock,
   importWallet: importWallet as unknown as Mock,
   listImportJobs: listImportJobs as unknown as Mock,
+  deleteWallet: deleteWallet as unknown as Mock,
   getAccountingSummary: getAccountingSummary as unknown as Mock,
   listCostBasis: listCostBasis as unknown as Mock,
   runAccounting: runAccounting as unknown as Mock,
@@ -56,11 +60,15 @@ function tx(over: Partial<Transaction> = {}): Transaction {
 
 function renderAt() {
   return render(
-    <MemoryRouter initialEntries={['/wallets/w1']}>
-      <Routes>
-        <Route path="/wallets/:id" element={<WalletPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ToastProvider>
+      <ConfirmProvider>
+        <MemoryRouter initialEntries={['/wallets/w1']}>
+          <Routes>
+            <Route path="/wallets/:id" element={<WalletPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ConfirmProvider>
+    </ToastProvider>,
   )
 }
 
@@ -76,6 +84,7 @@ beforeEach(() => {
   m.importWallet.mockResolvedValue({ id: 'job12345', status: 'running' } as ImportJob)
   m.listSyncJobs.mockResolvedValue([])
   m.startSync.mockResolvedValue({ job_id: 'syncjob1' })
+  m.deleteWallet.mockResolvedValue(undefined)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -182,5 +191,17 @@ describe('WalletPage', () => {
     renderAt()
     await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('sync down')
+  })
+
+  it('deletes the wallet from the Advanced tab Danger Zone', async () => {
+    renderAt()
+    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
+
+    await userEvent.click(await screen.findByRole('button', { name: /delete wallet/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(m.deleteWallet).toHaveBeenCalledWith('w1'))
   })
 })
