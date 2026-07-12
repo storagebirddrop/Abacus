@@ -141,6 +141,13 @@ func deriveMultisig(desc string, network *chaincfg.Params, upTo int, sorted bool
 	if threshold < 1 || threshold > n {
 		return nil, nil, fmt.Errorf("invalid threshold %d for %d keys", threshold, n)
 	}
+	// p2wshMultisigAddr encodes both threshold and n as single OP_N opcodes
+	// (OP_1..OP_16), which only cover 1-16. Above that, the same arithmetic
+	// silently lands on unrelated opcodes (e.g. n=17 -> 0x61, OP_NOP1, not a
+	// number push) and produces a malformed witness script with no error.
+	if threshold > 16 || n > 16 {
+		return nil, nil, fmt.Errorf("multisig threshold and key count must each be <= 16 (got %d-of-%d)", threshold, n)
+	}
 
 	// Parse each key expression into an hdkeychain.ExtendedKey.
 	masterKeys := make([]*hdkeychain.ExtendedKey, n)
