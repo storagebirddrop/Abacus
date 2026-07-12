@@ -129,12 +129,21 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 			feeFiat = -feeFiat
 		}
 
+		// Coinbase's CSV export has no order/trade ID, so derive a stable dedup
+		// key from the row's own fields (see common.SyntheticExternalID) --
+		// otherwise re-importing an export that overlaps previous history
+		// would insert full duplicate trades with no error.
+		externalID := common.SyntheticExternalID(
+			get(row, "timestamp"), rawType, get(row, "quantity transacted"),
+			totalFiatStr, get(row, "fees and/or spread"),
+		)
+
 		result.Trades = append(result.Trades, domain.ExchangeTrade{
 			ID:           uuid.New().String(),
 			WalletID:     walletID,
 			TradeType:    tt,
 			Exchange:     "coinbase",
-			ExternalID:   "", // Coinbase CSV does not include an order ID
+			ExternalID:   externalID,
 			TradedAt:     tradedAt,
 			Sats:         sats,
 			FiatAmount:   fiatCents,

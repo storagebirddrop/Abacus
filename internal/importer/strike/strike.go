@@ -101,11 +101,22 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 			feeFiat = -feeFiat
 		}
 
+		// Strike's CSV export has no per-row transaction ID, so derive a
+		// stable dedup key from the row's own fields (see
+		// common.SyntheticExternalID) -- otherwise re-importing an export
+		// that overlaps previous history would insert full duplicate trades
+		// with no error.
+		externalID := common.SyntheticExternalID(
+			get(row, "date"), rawType, get(row, "btc amount"),
+			get(row, "usd amount"), get(row, "fee"),
+		)
+
 		result.Trades = append(result.Trades, domain.ExchangeTrade{
 			ID:           uuid.New().String(),
 			WalletID:     walletID,
 			TradeType:    tt,
 			Exchange:     "strike",
+			ExternalID:   externalID,
 			TradedAt:     tradedAt,
 			Sats:         sats,
 			FiatAmount:   fiatCents,
