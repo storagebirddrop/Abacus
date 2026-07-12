@@ -21,6 +21,15 @@ on:
     types: [completed]
     branches: [main]
 
+# Serialize runs so two merges landing close together can't both read the same
+# "latest tag" before either pushes theirs (which would make the second tag
+# push fail, silently dropping that release). Never cancel an in-progress run
+# — each one corresponds to a specific commit that still needs its own tag —
+# just make the next one wait its turn.
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
 jobs:
   bump-and-tag:
     # Only run when CI actually passed (not on failure or cancellation).
