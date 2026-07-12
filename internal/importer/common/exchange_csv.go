@@ -1,7 +1,11 @@
 // Package common provides shared parsing utilities for exchange CSV importers.
 package common
 
-import "strings"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+)
 
 // ParseBTCSats converts a BTC decimal string (e.g. "0.05000000" or "-0.01")
 // to integer satoshis. Returns 0 on empty input, not an error.
@@ -64,6 +68,32 @@ func ParseFiatCents(s string) int64 {
 		result = -result
 	}
 	return result
+}
+
+// SyntheticExternalID builds a stable, deterministic dedup key for exchange
+// CSV rows that carry no native per-trade ID (e.g. Coinbase, Strike). The
+// exchange_trades table has a unique index on (wallet_id, external_id) that
+// only applies when external_id is non-NULL — an importer that always leaves
+// ExternalID empty gets no dedup protection at all, and re-importing the same
+// file (or an updated export that overlaps previously-imported history, the
+// normal workflow for anyone tracking an ongoing account) silently inserts
+// full duplicate trades.
+//
+// Callers should pass enough stable, row-identifying fields (raw CSV values,
+// not yet parsed to sats/cents) that the same source row always produces the
+// same ID on re-import. This is best-effort, not a true unique ID: two
+// genuinely distinct trades with identical values in every hashed field
+// (same timestamp down to the precision given, same type, same amounts) will
+// collide and be treated as duplicates. In practice this requires two trades
+// executed in the same second with identical amounts, which is rare enough
+// to accept given the alternative (no dedup at all).
+func SyntheticExternalID(parts ...string) string {
+	h := sha256.New()
+	for _, p := range parts {
+		h.Write([]byte(p))
+		h.Write([]byte{0}) // separator so "ab"+"c" can't collide with "a"+"bc"
+	}
+	return hex.EncodeToString(h.Sum(nil))[:32]
 }
 
 // parseDigits converts a non-negative digit-only string to int64.

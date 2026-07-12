@@ -60,9 +60,25 @@ func isBTC(asset string) bool {
 	return a == "XBT" || a == "XXBT" || a == "BTC"
 }
 
-func isEUR(asset string) bool {
-	a := strings.ToUpper(asset)
-	return a == "EUR" || a == "ZEUR"
+// krakenFiatCodes maps Kraken's asset codes for its supported fiat rails to
+// their ISO 4217 currency code. Kraken supports far more than EUR (USD, GBP,
+// CAD, JPY, CHF, AUD, ...); older exports use the "Z"-prefixed form
+// (ZUSD, ZEUR, ...), newer ones sometimes drop it.
+var krakenFiatCodes = map[string]string{
+	"ZUSD": "USD", "USD": "USD",
+	"ZEUR": "EUR", "EUR": "EUR",
+	"ZGBP": "GBP", "GBP": "GBP",
+	"ZCAD": "CAD", "CAD": "CAD",
+	"ZJPY": "JPY", "JPY": "JPY",
+	"ZCHF": "CHF", "CHF": "CHF",
+	"ZAUD": "AUD", "AUD": "AUD",
+}
+
+// fiatCode returns the normalised ISO currency code for a Kraken fiat asset,
+// and whether the asset is a recognised fiat rail at all.
+func fiatCode(asset string) (string, bool) {
+	code, ok := krakenFiatCodes[strings.ToUpper(asset)]
+	return code, ok
 }
 
 func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*importer.ImportResult, error) {
@@ -86,8 +102,8 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 
 	// First pass: collect all rows grouped by refid.
 	type refGroup struct {
-		btcRows []krakenRow
-		eurRows []krakenRow
+		btcRows  []krakenRow
+		fiatRows []krakenRow
 	}
 	groups := map[string]*refGroup{}
 	var order []string // preserve refid insertion order
@@ -109,14 +125,16 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 		}
 
 		var amount, fee int64
+		isFiat := false
 		if isBTC(asset) {
 			amount = common.ParseBTCSats(get(row, "amount"))
 			fee = common.ParseBTCSats(get(row, "fee"))
-		} else if isEUR(asset) {
+		} else if _, ok := fiatCode(asset); ok {
+			isFiat = true
 			amount = common.ParseFiatCents(get(row, "amount"))
 			fee = common.ParseFiatCents(get(row, "fee"))
 		} else {
-			// Non-BTC, non-EUR asset — skip (e.g., ETH)
+			// Non-BTC, non-fiat asset — skip (e.g., ETH)
 			continue
 		}
 
@@ -142,8 +160,8 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 		g := groups[refid]
 		if isBTC(asset) {
 			g.btcRows = append(g.btcRows, kr)
-		} else if isEUR(asset) {
-			g.eurRows = append(g.eurRows, kr)
+		} else if isFiat {
+			g.fiatRows = append(g.fiatRows, kr)
 		}
 	}
 
@@ -162,7 +180,8 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 			}
 
 			var tt domain.TradeType
-			var fiatCents int64
+			var fiatCents, feeFiat int64
+			fiatCurrency := "EUR" // fallback if no paired fiat row is found at all
 
 			switch btcRow.kind {
 			case "deposit":
@@ -176,13 +195,25 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 					sats = -sats
 				}
 			case "trade", "spend", "receive":
-				// Find the paired EUR row with the same refid.
-				for _, eurRow := range g.eurRows {
-					fc := eurRow.amount
+				// Find the paired fiat row with the same refid. Kraken supports
+				// many fiat rails (USD, GBP, CAD, ...), not just EUR — use
+				// whatever currency the paired row actually reports, and
+				// capture its fee (previously parsed but discarded here).
+				for _, fiatRow := range g.fiatRows {
+					fc := fiatRow.amount
 					if fc < 0 {
 						fc = -fc
 					}
 					fiatCents = fc
+					if code, ok := fiatCode(fiatRow.asset); ok {
+						fiatCurrency = code
+					}
+					ff := fiatRow.fee
+					if ff < 0 {
+						ff = -ff
+					}
+					feeFiat = ff
+					break
 				}
 				if sats > 0 {
 					tt = domain.TradeTypeBuy
@@ -204,7 +235,8 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 				TradedAt:     btcRow.t,
 				Sats:         sats,
 				FiatAmount:   fiatCents,
-				FiatCurrency: "EUR",
+				FiatCurrency: fiatCurrency,
+				FeeFiat:      feeFiat,
 				FeeSats:      feeSats,
 				CreatedAt:    now,
 			}
