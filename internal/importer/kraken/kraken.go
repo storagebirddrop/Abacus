@@ -213,6 +213,7 @@ func (imp *Importer) Import(_ context.Context, walletID string, r io.Reader) (*i
 						ff = -ff
 					}
 					feeFiat = ff
+					break
 				}
 				if sats > 0 {
 					tt = domain.TradeTypeBuy

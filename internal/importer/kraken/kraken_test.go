@@ -76,6 +76,9 @@ func TestImport_GBPTrade(t *testing.T) {
 	if result.Trades[0].FiatCurrency != "GBP" {
 		t.Errorf("FiatCurrency = %q, want GBP", result.Trades[0].FiatCurrency)
 	}
+	if result.Trades[0].FiatAmount != 40000 {
+		t.Errorf("FiatAmount = %d, want 40000 (400.00 GBP)", result.Trades[0].FiatAmount)
+	}
 }
 
 // TestImport_FiatFeeCaptured verifies the fiat-side "fee" column, previously
