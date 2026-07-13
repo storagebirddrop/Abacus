@@ -79,7 +79,6 @@ After=network.target
 [Service]
 ExecStart=%h/Abacus-x86_64.AppImage
 Restart=on-failure
-Environment=DB_PATH=%h/.local/share/abacus/abacus.db
 
 [Install]
 WantedBy=default.target
@@ -89,6 +88,10 @@ WantedBy=default.target
 systemctl --user daemon-reload
 systemctl --user enable --now abacus.service
 ```
+
+No `DB_PATH`/directory setup needed here: running the AppImage always executes its bundled
+`AppRun` script first, which unconditionally sets `DB_PATH` to the XDG data path below and
+creates the directory if it doesn't exist — before the `abacus` binary itself ever starts.
 
 (Use `loginctl enable-linger $USER` if you want it to keep running after you
 log out.)
@@ -102,7 +105,7 @@ canonical, commented list. Summary:
 | Variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `8080` | HTTP listen port |
-| `DB_PATH` | `./abacus.db` | SQLite database file (AppImage default: `~/.local/share/abacus/abacus.db`) |
+| `DB_PATH` | `./abacus.db` | SQLite database file. The AppImage's `AppRun` script always overrides this to `~/.local/share/abacus/abacus.db` regardless of the environment — it only applies to Docker/binary use |
 | `ENV` | `production` | `development` \| `production` |
 | `FRONTEND_DIR` | `./web/dist` | Serve the frontend from disk instead of the embedded copy (dev only) |
 | `API_TOKEN` | *(unset)* | Require `Authorization: Bearer <token>` on `/api/v1` (except health/version) — see above |
