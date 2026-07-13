@@ -115,9 +115,9 @@ export function AccountingTab({ walletID }: { walletID: string }) {
         </div>
       )}
 
-      <div className="flex gap-2">
-        <ExportBar walletID={walletID} report="pnl" />
-        <ExportBar walletID={walletID} report="balance-sheet" />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <ExportBar walletID={walletID} report="pnl" label="P&L:" />
+        <ExportBar walletID={walletID} report="balance-sheet" label="Balance Sheet:" />
       </div>
 
       {records.length > 0 && (
