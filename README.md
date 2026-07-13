@@ -16,6 +16,15 @@
 Abacus is an open-source, self-hosted Bitcoin accounting engine.
 Import your wallet data and get an immutable financial ledger with multi-method cost basis accounting, blockchain sync, and jurisdiction-specific tax reports.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Portfolio dashboard with the value/holdings history chart](docs/screenshots/portfolio.png) | ![Wallet transactions list with search, sort, and category badges](docs/screenshots/transactions.png) |
+| Portfolio dashboard — cross-wallet holdings, gains, and a value/BTC history chart | Wallet transactions — search, sort, status filter, inline category editing |
+| ![Cost basis run and P&L/balance sheet export](docs/screenshots/accounting.png) | ![Jurisdiction tax report generation](docs/screenshots/reports.png) |
+| Accounting — FIFO/LIFO/HIFO/etc. cost basis run with per-UTXO gain/loss | Reports — jurisdiction tax reports plus P&L, balance sheet, and transaction exports |
+
 ## What Abacus does
 
 - Imports wallet data from **Sparrow**, **Nunchuk**, **Coldcard**, **Specter Desktop**, **Electrum**, and any wallet that exports a descriptor or BIP329 labels
@@ -88,6 +97,9 @@ cosign verify-blob \
 ```
 
 Open http://localhost:8080
+
+For a production deployment (exposed beyond localhost, running as a background service,
+backups) see [docs/deployment.md](docs/deployment.md).
 
 ## Import your wallet
 
@@ -200,6 +212,11 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Dark-first design system — real theming (dark and light both fully token-based, not just a background swap), single accent color, portfolio value/BTC-holdings history chart on the dashboard | ✅ |
 | Accessibility audit (aria attributes, keyboard navigation) | 🔲 |
 | Bitcoin Core sync backend | 🔲 |
+
+## Community
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). This project follows the
+[Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

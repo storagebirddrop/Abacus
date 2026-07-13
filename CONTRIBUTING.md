@@ -1,7 +1,8 @@
 # Contributing to Abacus
 
 Thanks for your interest in improving Abacus. This guide covers local setup and
-the conventions CI enforces.
+the conventions CI enforces. By participating, you agree to follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Prerequisites
 
