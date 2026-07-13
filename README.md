@@ -24,6 +24,8 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 | Portfolio dashboard — cross-wallet holdings, gains, and a value/BTC history chart | Wallet transactions — search, sort, status filter, inline category editing |
 | ![Cost basis run and P&L/balance sheet export](docs/screenshots/accounting.png) | ![Jurisdiction tax report generation](docs/screenshots/reports.png) |
 | Accounting — FIFO/LIFO/HIFO/etc. cost basis run with per-UTXO gain/loss | Reports — jurisdiction tax reports plus P&L, balance sheet, and transaction exports |
+| ![Drag-and-drop wallet import dialog](docs/screenshots/import.png) | ![Settings page with blockchain sync and API token config](docs/screenshots/settings.png) |
+| Import — drag and drop any supported wallet or exchange export, format auto-detected | Settings — opt-in blockchain sync (Esplora/Electrum) and API token configuration |
 
 ## What Abacus does
 

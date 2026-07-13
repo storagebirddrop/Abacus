@@ -2,7 +2,11 @@ services:
   abacus:
     build: .
     ports:
-      - "${PORT:-8080}:8080"
+      # Bound to localhost by default — this is a single-user financial app
+      # with no auth by default. Remove the "127.0.0.1:" prefix (or put a
+      # reverse proxy in front, see docs/deployment.md) to expose it beyond
+      # this machine deliberately.
+      - "127.0.0.1:${PORT:-8080}:8080"
     volumes:
       - abacus-data:/app/data
     environment:

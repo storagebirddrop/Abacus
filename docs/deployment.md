@@ -7,12 +7,18 @@ exposed beyond `localhost`.
 
 Abacus is a single Go binary with an embedded frontend and an embedded SQLite
 migration set. All persistent state lives in one SQLite file. There is no
-external database, cache, or queue to operate.
+external database, cache, or queue to operate — and no support for running
+multiple instances against the same database: SQLite is single-writer, and
+Abacus is designed as one process per database file, not a horizontally
+scaled service.
 
 ## Docker Compose
 
-The included `docker-compose.yml` is deployment-ready as-is for a single-user,
-trusted-network setup:
+The included `docker-compose.yml` is deployment-ready as-is for a single-user
+setup, and **binds to `127.0.0.1` by default** — it is not reachable from
+your network until you deliberately open it up (see below). This matches
+the rest of the app's secure-by-default posture (auth and blockchain sync
+are both off until you turn them on).
 
 ```bash
 git clone https://github.com/storagebirddrop/abacus
@@ -27,15 +33,22 @@ named volume `abacus-data`.
 
 ### Exposing it beyond localhost
 
-If Abacus will be reachable outside your own machine, do all three of these:
+If Abacus will be reachable outside your own machine, consider a private
+network first — Tailscale or a WireGuard VPN gives you remote access without
+ever putting the app on the public internet, in keeping with the project's
+"public wallet data only, self-hosted, privacy by default" stance (see
+[CLAUDE.md](../CLAUDE.md#key-invariants)). If you do want it reachable more
+broadly, do all three of these:
 
 1. **Set `API_TOKEN`** in `.env` — a strong, random bearer token
    (`openssl rand -hex 32`). Without it, every `/api/v1` route is open to
    anyone who can reach the port. The bundled web UI picks the token up
    automatically once you save it on the Settings → API access page.
-2. **Put a reverse proxy in front of it** for TLS termination — Abacus itself
-   only serves plain HTTP. A minimal Caddy example (automatic HTTPS via
-   Let's Encrypt):
+2. **Remove the `127.0.0.1:` prefix** from `docker-compose.yml`'s `ports:`
+   entry (or bind a different specific interface) and **put a reverse proxy
+   in front of it** for TLS termination — Abacus itself only serves plain
+   HTTP. A minimal Caddy example (automatic HTTPS via Let's Encrypt, renews
+   itself):
 
    ```caddyfile
    abacus.example.com {
@@ -43,13 +56,20 @@ If Abacus will be reachable outside your own machine, do all three of these:
    }
    ```
 
-   Or Nginx:
+   Or Nginx, which needs an explicit certificate — [certbot](https://certbot.eff.org/)
+   with the Nginx plugin obtains one and installs a systemd timer that
+   renews it automatically:
+
+   ```bash
+   sudo certbot --nginx -d abacus.example.com
+   ```
 
    ```nginx
    server {
        listen 443 ssl;
        server_name abacus.example.com;
-       # ssl_certificate / ssl_certificate_key ...
+       ssl_certificate     /etc/letsencrypt/live/abacus.example.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/abacus.example.com/privkey.pem;
 
        location / {
            proxy_pass http://127.0.0.1:8080;
@@ -96,6 +116,17 @@ creates the directory if it doesn't exist — before the `abacus` binary itself 
 (Use `loginctl enable-linger $USER` if you want it to keep running after you
 log out.)
 
+## Logs & monitoring
+
+Abacus logs to stdout only — there's no log file to manage or rotate:
+
+- **Docker Compose**: `docker compose logs -f abacus`
+- **systemd**: `journalctl --user -u abacus -f`
+
+For uptime monitoring, poll `GET /api/v1/health` (the same endpoint the
+Docker healthcheck above already uses) — it returns `200 {"status":"ok"}`
+with no auth required.
+
 ## Environment variables
 
 All configuration is via environment variables (`.env` for Docker Compose, or
@@ -106,7 +137,6 @@ canonical, commented list. Summary:
 |---|---|---|
 | `PORT` | `8080` | HTTP listen port |
 | `DB_PATH` | `./abacus.db` | SQLite database file. The AppImage's `AppRun` script always overrides this to `~/.local/share/abacus/abacus.db` regardless of the environment — it only applies to Docker/binary use |
-| `ENV` | `production` | `development` \| `production` |
 | `FRONTEND_DIR` | `./web/dist` | Serve the frontend from disk instead of the embedded copy (dev only) |
 | `API_TOKEN` | *(unset)* | Require `Authorization: Bearer <token>` on `/api/v1` (except health/version) — see above |
 | `RATE_LIMIT_RPM` | `600` | Per-IP request cap per minute on `/api/v1`; `0` disables |
@@ -120,7 +150,8 @@ Settings page, persisted in SQLite — no restart needed.
 
 The entire application state is the single SQLite file at `DB_PATH`
 (`abacus-data` volume under Docker Compose; `~/.local/share/abacus/abacus.db`
-for the AppImage default). To back it up:
+for the AppImage default). It only grows over time — keep an eye on
+available disk space on long-running deployments. To back it up:
 
 - **Simplest**: stop the container/process, copy the file, restart.
 - **Live backup without downtime**: use SQLite's own backup command, which is
@@ -130,7 +161,14 @@ for the AppImage default). To back it up:
   sqlite3 /path/to/abacus.db ".backup /path/to/abacus-backup.db"
   ```
 
-Restoring is just replacing the file and restarting Abacus.
+A backup you haven't restored is a backup you don't actually have — periodically
+verify one actually opens cleanly, not just that the copy step succeeded:
+
+```bash
+sqlite3 /path/to/abacus-backup.db "PRAGMA integrity_check;"
+```
+
+To restore, stop Abacus, replace the live file with the backup, and restart.
 
 ## Upgrading
 
