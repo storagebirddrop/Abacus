@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/storagebirddrop/abacus/internal/domain"
@@ -22,6 +24,11 @@ type portfolioUTXORepo interface {
 
 type portfolioPriceRepo interface {
 	GetClosest(ctx context.Context, currency string, t time.Time) (*domain.PriceSnapshot, error)
+	List(ctx context.Context, currency string, from, to time.Time) ([]*domain.PriceSnapshot, error)
+}
+
+type portfolioLedgerRepo interface {
+	ListAllOrdered(ctx context.Context) ([]*domain.LedgerEntry, error)
 }
 
 // WalletSummary is one wallet's contribution to the portfolio.
@@ -53,10 +60,11 @@ type PortfolioHandler struct {
 	cbRepo    portfolioCBRepo
 	utxos     portfolioUTXORepo
 	priceRepo portfolioPriceRepo
+	ledger    portfolioLedgerRepo
 }
 
-func NewPortfolioHandler(wallets portfolioWalletLister, cbRepo portfolioCBRepo, utxos portfolioUTXORepo, priceRepo portfolioPriceRepo) *PortfolioHandler {
-	return &PortfolioHandler{wallets: wallets, cbRepo: cbRepo, utxos: utxos, priceRepo: priceRepo}
+func NewPortfolioHandler(wallets portfolioWalletLister, cbRepo portfolioCBRepo, utxos portfolioUTXORepo, priceRepo portfolioPriceRepo, ledger portfolioLedgerRepo) *PortfolioHandler {
+	return &PortfolioHandler{wallets: wallets, cbRepo: cbRepo, utxos: utxos, priceRepo: priceRepo, ledger: ledger}
 }
 
 // currentPrice returns the latest known price for currency, or 0 if unknown.
@@ -145,4 +153,86 @@ func (h *PortfolioHandler) GetPortfolioSummary(w http.ResponseWriter, r *http.Re
 	}
 
 	writeJSON(w, http.StatusOK, summary)
+}
+
+// PortfolioHistoryPoint is one day's cumulative BTC balance and its fiat
+// value at the closest known price, across all wallets.
+type PortfolioHistoryPoint struct {
+	Date      string `json:"date"` // YYYY-MM-DD (UTC)
+	TotalSats int64  `json:"total_sats"`
+	FiatValue int64  `json:"fiat_value"` // cents; 0 if no price known for that date
+}
+
+// GetPortfolioHistory handles GET /api/v1/portfolio/history?currency=EUR&days=180
+// It reconstructs the cumulative sats balance across every wallet's ledger day
+// by day, and marks each day to the closest known price snapshot.
+func (h *PortfolioHandler) GetPortfolioHistory(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	currency := r.URL.Query().Get("currency")
+	if currency == "" {
+		currency = "EUR"
+	}
+	days := 365
+	if s := r.URL.Query().Get("days"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			days = n
+		}
+	}
+
+	entries, err := h.ledger.ListAllOrdered(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if len(entries) == 0 {
+		writeJSON(w, http.StatusOK, []PortfolioHistoryPoint{})
+		return
+	}
+
+	today := truncateToDay(time.Now().UTC())
+	start := truncateToDay(entries[0].CreatedAt)
+	if earliest := today.AddDate(0, 0, -days+1); earliest.After(start) {
+		start = earliest
+	}
+
+	prices, err := h.priceRepo.List(ctx, currency, start, today.AddDate(0, 0, 1))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	sort.Slice(prices, func(i, j int) bool { return prices[i].Timestamp.Before(prices[j].Timestamp) })
+
+	points := make([]PortfolioHistoryPoint, 0, days)
+	var runningSats int64
+	entryIdx := 0
+	priceIdx := 0
+	for day := start; !day.After(today); day = day.AddDate(0, 0, 1) {
+		dayEnd := day.AddDate(0, 0, 1)
+		for entryIdx < len(entries) && entries[entryIdx].CreatedAt.Before(dayEnd) {
+			e := entries[entryIdx]
+			if e.Type == domain.EntryTypeCredit {
+				runningSats += e.Sats
+			} else {
+				runningSats -= e.Sats
+			}
+			entryIdx++
+		}
+		// Advance to the last price snapshot at or before this day; hold the
+		// most recent known price forward across days with no snapshot.
+		for priceIdx+1 < len(prices) && !prices[priceIdx+1].Timestamp.After(dayEnd) {
+			priceIdx++
+		}
+		var fiatValue int64
+		if len(prices) > 0 && !prices[priceIdx].Timestamp.After(dayEnd) {
+			fiatValue = satsToFiat(runningSats, prices[priceIdx].PriceFiat)
+		}
+		points = append(points, PortfolioHistoryPoint{
+			Date:      day.Format("2006-01-02"),
+			TotalSats: runningSats,
+			FiatValue: fiatValue,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, points)
 }

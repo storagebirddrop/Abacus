@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUpDown, FileDown, Upload, Wifi } from 'lucide-react'
 import { getPortfolioSummary, type PortfolioSummary, type WalletSummary } from '../api/portfolio'
 import { AddWalletDialog } from '../components/AddWalletDialog'
+import { PortfolioChart } from '../components/PortfolioChart'
 import { cn } from '../lib/utils'
 
 function fmtBTC(sats: number): string {
@@ -202,6 +203,13 @@ export default function PortfolioPage() {
             <p className="text-xs text-muted-foreground mt-3">
               Run accounting on a wallet to see fiat gain/loss figures.
             </p>
+          )}
+
+          {/* History chart */}
+          {hasWallets && (
+            <div className="mt-6">
+              <PortfolioChart currency={currency} />
+            </div>
           )}
 
           {/* Quick actions */}

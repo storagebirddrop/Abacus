@@ -23,3 +23,12 @@ export interface PortfolioSummary {
 
 export const getPortfolioSummary = () =>
   apiFetch<PortfolioSummary>('/portfolio/summary')
+
+export interface PortfolioHistoryPoint {
+  date: string // YYYY-MM-DD
+  total_sats: number
+  fiat_value: number // cents; 0 if no price known for that date
+}
+
+export const getPortfolioHistory = (currency: string, days = 180) =>
+  apiFetch<PortfolioHistoryPoint[]>(`/portfolio/history?currency=${currency}&days=${days}`)
