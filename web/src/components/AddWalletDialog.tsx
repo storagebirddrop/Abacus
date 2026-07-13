@@ -110,9 +110,10 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
           {/* Wallet type toggle */}
           <div>
             <label className="block text-sm font-medium mb-2">Wallet type</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="group" aria-label="Wallet type">
               <button
                 type="button"
+                aria-pressed={!isExchange}
                 onClick={() => handleModeChange('onchain')}
                 className={cn(
                   'flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors',
@@ -125,6 +126,7 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
               </button>
               <button
                 type="button"
+                aria-pressed={isExchange}
                 onClick={() => handleModeChange('exchange')}
                 className={cn(
                   'flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors',
@@ -170,12 +172,23 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
               </p>
             )}
             <div
+              role="button"
+              tabIndex={loading ? -1 : 0}
+              aria-label={isExchange ? 'Upload transaction export file' : 'Upload import file'}
+              aria-disabled={loading}
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={(e) => { e.preventDefault(); setDragOver(false) }}
               onClick={() => !loading && fileRef.current?.click()}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && !loading) {
+                  e.preventDefault()
+                  fileRef.current?.click()
+                }
+              }}
               className={cn(
                 'flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors',
+                'focus:outline-none focus:ring-2 focus:ring-ring',
                 dragOver
                   ? 'border-primary bg-primary/10'
                   : file
@@ -190,13 +203,6 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-sm text-success font-medium">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setFile(null) }}
-                    className="text-xs text-muted-foreground hover:text-muted-foreground underline"
-                  >
-                    Remove
-                  </button>
                 </>
               ) : (
                 <>
@@ -208,15 +214,25 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
                   </span>
                 </>
               )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".json,.csv,.bsms,.jsonl"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={loading}
-              />
             </div>
+            {file && (
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="mt-1.5 text-xs text-muted-foreground hover:text-muted-foreground underline"
+              >
+                Remove
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              aria-label={isExchange ? 'Upload transaction export file' : 'Upload import file'}
+              accept=".json,.csv,.bsms,.jsonl"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={loading}
+            />
           </div>
 
           {/* Name */}

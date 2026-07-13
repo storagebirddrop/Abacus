@@ -96,11 +96,12 @@ export function PortfolioChart({ currency }: { currency: string }) {
         </div>
         <div className="flex items-center gap-4">
           {hasPrices && (
-            <div className="flex rounded-md border border-border overflow-hidden text-xs">
+            <div className="flex rounded-md border border-border overflow-hidden text-xs" role="group" aria-label="Chart metric">
               {(['value', 'sats'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMetric(m)}
+                  aria-pressed={effectiveMetric === m}
                   className={
                     effectiveMetric === m
                       ? 'px-2.5 py-1 bg-primary/15 text-primary font-medium'
@@ -112,11 +113,12 @@ export function PortfolioChart({ currency }: { currency: string }) {
               ))}
             </div>
           )}
-          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+          <div className="flex rounded-md border border-border overflow-hidden text-xs" role="group" aria-label="Date range">
             {RANGES.map((r) => (
               <button
                 key={r.days}
                 onClick={() => setDays(r.days)}
+                aria-pressed={days === r.days}
                 className={
                   days === r.days
                     ? 'px-2.5 py-1 bg-primary/15 text-primary font-medium'

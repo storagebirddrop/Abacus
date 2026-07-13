@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { axe } from 'vitest-axe'
 import type { Wallet, Transaction, ImportJob } from '../api/wallets'
 import type { AccountingSummary } from '../api/accounting'
 import { ToastProvider } from '../components/Toast'
@@ -124,7 +125,7 @@ describe('WalletPage', () => {
       unrealised_gain_fiat: 0, realised_gain_fiat: 0, computed_at: '',
     })
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Accounting' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Accounting' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Run Accounting' }))
 
     await waitFor(() => expect(m.runAccounting).toHaveBeenCalledWith('w1', 'fifo', 'EUR'))
@@ -159,7 +160,7 @@ describe('WalletPage', () => {
 
   it('starts a blockchain sync', async () => {
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Advanced' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Sync from Blockchain' }))
 
     await waitFor(() => expect(m.startSync).toHaveBeenCalledWith('w1'))
@@ -175,7 +176,7 @@ describe('WalletPage', () => {
   it('surfaces an accounting-load failure on the Accounting tab', async () => {
     m.getAccountingSummary.mockRejectedValue(new Error('boom'))
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Accounting' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Accounting' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('boom')
   })
 
@@ -189,13 +190,23 @@ describe('WalletPage', () => {
   it('surfaces a sync-history load failure on the Advanced tab', async () => {
     m.listSyncJobs.mockRejectedValue(new Error('sync down'))
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Advanced' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('sync down')
+  })
+
+  it('exposes the wallet section switcher as an ARIA tablist with no axe violations', async () => {
+    const { container } = renderAt()
+    const tablist = await screen.findByRole('tablist', { name: 'Wallet sections' })
+    const tab = within(tablist).getByRole('tab', { name: 'Transactions' })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    expect(tab).toHaveAttribute('aria-controls', 'tabpanel-transactions')
+
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('deletes the wallet from the Advanced tab Danger Zone', async () => {
     renderAt()
-    await userEvent.click(await screen.findByRole('button', { name: 'Advanced' }))
+    await userEvent.click(await screen.findByRole('tab', { name: 'Advanced' }))
 
     await userEvent.click(await screen.findByRole('button', { name: /delete wallet/i }))
 

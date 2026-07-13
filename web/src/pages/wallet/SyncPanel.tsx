@@ -55,7 +55,6 @@ export function SyncPanel({ walletID }: { walletID: string }) {
       )}
       <div className="bg-card border border-border rounded-lg p-4 space-y-4">
         <div>
-          <h3 className="text-sm font-medium mb-1">Blockchain Sync</h3>
           <p className="text-xs text-muted-foreground">
             Derives addresses from the wallet descriptor and fetches transaction history from the configured blockchain backend.
             Requires the wallet to have a descriptor set.

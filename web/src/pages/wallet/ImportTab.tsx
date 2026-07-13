@@ -91,12 +91,23 @@ export function ImportTab({ walletID }: { walletID: string }) {
 
           {/* Drop zone */}
           <div
+            role="button"
+            tabIndex={uploading ? -1 : 0}
+            aria-label="Upload wallet export file"
+            aria-disabled={uploading}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onClick={() => !uploading && fileRef.current?.click()}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ' ') && !uploading) {
+                e.preventDefault()
+                fileRef.current?.click()
+              }
+            }}
             className={cn(
               'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center cursor-pointer transition-colors',
+              'focus:outline-none focus:ring-2 focus:ring-ring',
               dragOver
                 ? 'border-primary bg-primary/10'
                 : 'border-border hover:border-primary/50',
@@ -109,15 +120,16 @@ export function ImportTab({ walletID }: { walletID: string }) {
             <span className="text-sm text-muted-foreground">
               {dragOver ? 'Drop to import' : 'Drag & drop a file here, or click to browse'}
             </span>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json,.csv,.bsms,.jsonl"
-              className="hidden"
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
           </div>
+          <input
+            ref={fileRef}
+            type="file"
+            aria-label="Upload wallet export file"
+            accept=".json,.csv,.bsms,.jsonl"
+            className="hidden"
+            onChange={handleFileChange}
+            disabled={uploading}
+          />
         </div>
 
         {status && <p className="text-sm text-muted-foreground">{status}</p>}

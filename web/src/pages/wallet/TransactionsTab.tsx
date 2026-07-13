@@ -65,6 +65,7 @@ function CategoryCell({
     return (
       <select
         autoFocus
+        aria-label={`Category for transaction ${tx.txid.slice(0, 8)}`}
         value={tx.category}
         onChange={handleChange}
         onBlur={() => setEditing(false)}
@@ -82,6 +83,7 @@ function CategoryCell({
     <button
       onClick={() => setEditing(true)}
       title="Click to change category"
+      aria-label={`Category: ${tx.category || 'unknown'}. Click to change.`}
       className={cn(
         'text-xs px-2 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-75',
         CATEGORY_STYLES[tx.category] ?? CATEGORY_STYLES.unknown,
@@ -186,7 +188,10 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
             <table className="w-full text-sm">
               <thead className="bg-secondary/60 border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  <th
+                    className="text-left px-4 py-3 font-medium text-muted-foreground"
+                    aria-sort={sort === 'date' ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
                     <button className="hover:text-primary" onClick={() => toggleSort('date')}>
                       Date{arrow('date')}
                     </button>
@@ -194,7 +199,10 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Txid</th>
                   <th className="text-right px-4 py-3 font-medium text-muted-foreground">Amount</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  <th
+                    className="text-right px-4 py-3 font-medium text-muted-foreground"
+                    aria-sort={sort === 'fee' ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
                     <button className="hover:text-primary" onClick={() => toggleSort('fee')}>
                       Fee (sats){arrow('fee')}
                     </button>
@@ -228,7 +236,9 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
                     <td className="px-4 py-3">
                       <span className={cn(
                         'text-xs px-2 py-0.5 rounded-full',
-                        tx.confirmed ? 'bg-green-100 text-success' : 'bg-yellow-100 text-yellow-700'
+                        tx.confirmed
+                          ? 'bg-green-900/40 text-success light:bg-green-100'
+                          : 'bg-yellow-900/40 text-yellow-400 light:bg-yellow-100 light:text-yellow-700'
                       )}>
                         {tx.confirmed ? 'Confirmed' : 'Pending'}
                       </span>
