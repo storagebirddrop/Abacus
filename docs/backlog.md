@@ -5,8 +5,9 @@
 **Phase 0–7 and the original post-Phase-7 backlog (items 1–7 below) are complete and merged.**
 A first independent product audit drove a round of remediation, and the
 **Second Batch** that followed is now entirely landed. A **second independent audit**
-drove the **Third Batch**, which is also now largely complete. The remaining open
-items are listed below (last verified against the code on 2026-07-02).
+drove the **Third Batch**, which is also now largely complete. A **Fourth Batch**
+(post-launch code review + dark-first redesign, 2026-07-13) has since landed too — see below.
+The remaining open items are listed below (last verified against the code on 2026-07-13).
 
 ---
 
@@ -32,10 +33,19 @@ items are listed below (last verified against the code on 2026-07-02).
 - [ ] **Tax constants by-year audit** — NL Box 3 methodology, UK annual exempt
   amounts, German loss carry-forward (Verlustvortrag). Needs legal care.
 - [ ] **Performance** — UTXO endpoint pagination, frontend code-splitting
-  (~419 KB bundle), memoisation; review indexes for large wallets.
-- [ ] **Opportunities** — portfolio dashboard with charts, journal diff/audit
-  viewer over the immutable ledger.
+  (~471 KB bundle as of the redesign, up from 419 KB), memoisation; review
+  indexes for large wallets.
+- [ ] **Opportunities** — journal diff/audit viewer over the immutable ledger.
+  (Portfolio dashboard with a value/BTC history chart shipped in the Fourth
+  Batch — see below.)
 - [ ] **Cross-platform release** — Docker image publish, Windows/macOS, arm64.
+- [ ] **Accessibility audit** — aria attributes and keyboard navigation were
+  never actually verified. The "Dark mode + accessibility pass" line in the
+  Second Batch below turned out to only cover responsive layout: dark mode
+  itself was broken (a background/foreground-only swap, not real theming)
+  until the Fourth Batch's redesign, and accessibility specifically was never
+  separately audited at all — correcting that overclaim here rather than
+  leaving it standing.
 - [ ] **Bitcoin Core sync backend** — `blockchain_backend: bitcoincore` is listed
   in the architecture but was never implemented. Add `internal/sync/bitcoincore/`
   with a JSON-RPC client (`getaddresstxids` / `scantxoutset`) and wire it into
@@ -97,6 +107,69 @@ the actual release history.
 
 ---
 
+# Fourth Batch (post-launch code review + dark-first redesign, 2026-07-13) — ✅ complete
+
+## Post-launch code review — four real, silent (no-error) bugs found and fixed
+- [x] **Auto-release tag-push race** — two merges landing close together could
+  both read the same "latest tag" and the second tag push would silently
+  fail, dropping a release. Fixed with a `concurrency` group in
+  `auto-release.yml` (PR #92).
+- [x] **Multisig `OP_M`/`OP_N` miscompilation above 16-of-16** —
+  `internal/sync/derive.go`'s opcode encoding only covers 1–16; above that it
+  silently landed on unrelated opcodes and produced a wrong address with no
+  error. Now rejected with a clear error instead (PR #93).
+- [x] **Exchange-import dedup + Kraken currency bugs** — Coinbase/Strike CSV
+  re-imports could insert full duplicate trades (no synthetic dedup key);
+  Kraken hardcoded EUR and silently zeroed non-EUR trade amounts/fees. Added
+  `common.SyntheticExternalID`; Kraken now recognizes USD/GBP/CAD/JPY/CHF/AUD
+  and captures the fiat-side fee (PR #94).
+- [x] **Unrealised gain always zero** — `RunFIFO`/etc. only ever set
+  `GainFiat` on disposal; both `accounting.Service.Summary()` and the
+  portfolio handler summed it for undisposed records too — permanently dead
+  code. Now marks held lots to market against the latest `PriceSnapshot`
+  (PR #95).
+
+## Dark-first design system redesign
+- [x] **Real theming, not a background swap** — Tailwind's CSS variable
+  tokens existed but were never wired into Tailwind via `@theme`, so every
+  page independently reached for hardcoded `slate-*`/`red-*`/`green-*`
+  utilities. Rebuilt on a proper token system; dark is now the default
+  identity, `.light` opts into light mode; single amber accent used
+  consistently for every primary action/link/active state (PR #97).
+- [x] **Composition fix** — content was capped at `max-w-3xl`/`max-w-4xl`
+  leaving most of a real monitor as dead space, and the Portfolio dashboard
+  was just a wallet table with nothing else on the page. Widened content
+  columns, added a "Quick actions" panel (PR #97).
+- [x] **Portfolio value/BTC-holdings history chart** — `GET
+  /portfolio/history` reconstructs a daily cumulative sats balance from
+  ledger entries and marks each day to the closest known price snapshot; a
+  hand-rolled SVG area/line chart (no new dependency) renders it with a
+  30/90/180/365-day range toggle and hover crosshair + tooltip (PR #97).
+- [x] **Critical CSS layering bug** — `index.css`'s `* { margin: 0; padding:
+  0 }` reset was unlayered, so per the CSS Cascade Layers spec it silently
+  beat every Tailwind spacing utility site-wide (`p-8`, `px-4`, `gap-4`, ...)
+  regardless of specificity. Found via screenshotting the live app for docs,
+  not by build/lint/test (all stayed green throughout). Fixed by wrapping the
+  reset in `@layer base` (PR #99).
+
+## Docs gaps — closed, then re-reviewed and hardened
+- [x] **CODE_OF_CONDUCT.md** — Contributor Covenant v2.1 (PR #99).
+- [x] **`docs/deployment.md`** — production deployment guide (PR #99), then
+  a brutally-honest self-review caught real gaps in the first pass and PR
+  #100 fixed them: `docker-compose.yml` bound the port to all interfaces by
+  default (now `127.0.0.1`-bound, since the guide had framed exposure as an
+  opt-in step that in fact wasn't); the documented `ENV` var turned out to be
+  dead code (dropped); asymmetric TLS guidance (Nginx had no real certbot
+  path, Caddy did); missing logging/backup-verification/single-writer/
+  disk-growth guidance; no privacy-preserving (Tailscale/WireGuard)
+  alternative to public exposure despite the project's own stated posture.
+- [x] **README screenshots** — six real screenshots against seeded demo data,
+  dark mode: Portfolio (with the new chart), Transactions, Accounting,
+  Reports (PR #99), then Import (drag-and-drop) and Settings — the two most
+  onboarding-critical flows that were missing from the first pass (PR #100).
+
+---
+
 # Second Batch — ✅ all complete (retained for history)
 - [x] Electrum float→sats parsing fix.
 - [x] Docker hardening — non-root `USER`, `HEALTHCHECK`, `.dockerignore`, limits.
@@ -105,7 +178,12 @@ the actual release history.
 - [x] Dependabot config + grouping.
 - [x] Frontend UX — toasts + confirm dialog, 404 route, table search/sort/filter
   (Wallets/Prices in-memory; Transactions server-side).
-- [x] Dark mode + accessibility pass + responsive sidebar.
+- [x] ~~Dark mode + accessibility pass~~ + responsive sidebar. **Correction
+  (2026-07-13):** this line was an overclaim. "Dark mode" only ever toggled
+  `background`/`foreground` — every other color stayed on light-mode values
+  until the Fourth Batch's redesign actually wired Tailwind's token system up
+  correctly. "Accessibility" was never separately audited (aria/keyboard nav)
+  — that's now tracked as its own open item above instead of implied done here.
 - [x] `API_TOKEN` → web UI wiring (PR #51).
 - [x] WalletPage refactor into per-tab files; `useDialog` / `usePoll` hooks.
 - [x] Import/Sync poll-to-completion tests.
