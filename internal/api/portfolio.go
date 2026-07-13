@@ -20,6 +20,10 @@ type portfolioUTXORepo interface {
 	ListByWallet(ctx context.Context, walletID string, unspentOnly bool) ([]*domain.UTXO, error)
 }
 
+type portfolioPriceRepo interface {
+	GetClosest(ctx context.Context, currency string, t time.Time) (*domain.PriceSnapshot, error)
+}
+
 // WalletSummary is one wallet's contribution to the portfolio.
 type WalletSummary struct {
 	WalletID           string                 `json:"wallet_id"`
@@ -45,13 +49,34 @@ type PortfolioSummary struct {
 
 // PortfolioHandler handles cross-wallet portfolio endpoints.
 type PortfolioHandler struct {
-	wallets portfolioWalletLister
-	cbRepo  portfolioCBRepo
-	utxos   portfolioUTXORepo
+	wallets   portfolioWalletLister
+	cbRepo    portfolioCBRepo
+	utxos     portfolioUTXORepo
+	priceRepo portfolioPriceRepo
 }
 
-func NewPortfolioHandler(wallets portfolioWalletLister, cbRepo portfolioCBRepo, utxos portfolioUTXORepo) *PortfolioHandler {
-	return &PortfolioHandler{wallets: wallets, cbRepo: cbRepo, utxos: utxos}
+func NewPortfolioHandler(wallets portfolioWalletLister, cbRepo portfolioCBRepo, utxos portfolioUTXORepo, priceRepo portfolioPriceRepo) *PortfolioHandler {
+	return &PortfolioHandler{wallets: wallets, cbRepo: cbRepo, utxos: utxos, priceRepo: priceRepo}
+}
+
+// currentPrice returns the latest known price for currency, or 0 if unknown.
+func (h *PortfolioHandler) currentPrice(ctx context.Context, currency string, now time.Time) int64 {
+	if currency == "" {
+		return 0
+	}
+	snap, err := h.priceRepo.GetClosest(ctx, currency, now)
+	if err != nil || snap == nil {
+		return 0
+	}
+	return snap.PriceFiat
+}
+
+// satsToFiat converts satoshis to fiat cents given a BTC price in cents.
+func satsToFiat(sats, pricePerBTCCents int64) int64 {
+	if pricePerBTCCents == 0 {
+		return 0
+	}
+	return sats * pricePerBTCCents / 100_000_000
 }
 
 // GetPortfolioSummary handles GET /api/v1/portfolio/summary
@@ -92,16 +117,23 @@ func (h *PortfolioHandler) GetPortfolioSummary(w http.ResponseWriter, r *http.Re
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		var price int64
 		for _, rec := range records {
 			if ws.Method == "" {
 				ws.Method = rec.Method
 				ws.FiatCurrency = rec.FiatCurrency
+				price = h.currentPrice(ctx, ws.FiatCurrency, summary.ComputedAt)
 			}
-			ws.TotalCostFiat += rec.CostFiat
 			if rec.DisposedAt != nil && rec.GainFiat != nil {
 				ws.RealisedGainFiat += *rec.GainFiat
-			} else if rec.GainFiat != nil {
-				ws.UnrealisedGainFiat += *rec.GainFiat
+				continue
+			}
+			// Held (undisposed) lots have no GainFiat — only disposals set it.
+			// Mark to market so "unrealised gain" isn't always zero, and only
+			// count cost of coins still held (matches TotalSats).
+			ws.TotalCostFiat += rec.CostFiat
+			if price > 0 {
+				ws.UnrealisedGainFiat += satsToFiat(rec.CostSats, price) - rec.CostFiat
 			}
 		}
 

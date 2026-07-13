@@ -5,12 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
 )
 
 const coinGeckoBase = "https://api.coingecko.com/api/v3"
+
+// roundCents converts a fiat price-per-BTC float to integer cents, rounding
+// to the nearest cent rather than truncating (a plain int64() cast biases
+// every price down by up to 1 cent).
+func roundCents(price float64) int64 {
+	return int64(math.Round(price * 100))
+}
 
 // FetchRange fetches historical daily BTC prices from CoinGecko for the given
 // date range and fiat currency. It makes a single HTTP request regardless of
@@ -65,7 +73,7 @@ func FetchRange(ctx context.Context, currency string, from, to time.Time) (map[t
 	for _, entry := range body.Prices {
 		ts := time.Unix(int64(entry[0])/1000, 0).UTC()
 		day := time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, time.UTC)
-		cents := int64(entry[1] * 100)
+		cents := roundCents(entry[1])
 		if cents > 0 {
 			result[day] = cents // later entries for the same day overwrite earlier ones
 		}

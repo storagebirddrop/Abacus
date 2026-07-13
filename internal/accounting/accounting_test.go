@@ -1,6 +1,8 @@
 package accounting_test
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -545,5 +547,117 @@ func TestSection104_30DayRule(t *testing.T) {
 	}
 	if *dispRecord.GainFiat != 10_000 {
 		t.Errorf("30-day gain = %d, want 10000", *dispRecord.GainFiat)
+	}
+}
+
+// --- Service.Summary tests ---
+
+type stubCBRepo struct {
+	records []*domain.CostBasisRecord
+}
+
+func (s *stubCBRepo) UpsertWithTx(_ context.Context, _ *sql.Tx, _ *domain.CostBasisRecord) error {
+	panic("not used by Summary")
+}
+func (s *stubCBRepo) DeleteByWallet(_ context.Context, _ *sql.Tx, _ string) error {
+	panic("not used by Summary")
+}
+func (s *stubCBRepo) ListByWallet(_ context.Context, _ string) ([]*domain.CostBasisRecord, error) {
+	return s.records, nil
+}
+
+type stubSummaryPriceRepo struct {
+	priceCents int64
+}
+
+func (s *stubSummaryPriceRepo) GetClosest(_ context.Context, currency string, _ time.Time) (*domain.PriceSnapshot, error) {
+	if s.priceCents == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return &domain.PriceSnapshot{Currency: currency, PriceFiat: s.priceCents}, nil
+}
+
+type stubUTXORepo struct{}
+
+func (stubUTXORepo) ListByWallet(_ context.Context, _ string, _ bool) ([]*domain.UTXO, error) {
+	return nil, nil
+}
+
+type stubTxDB struct{}
+
+func (stubTxDB) BeginTx(_ context.Context, _ *sql.TxOptions) (*sql.Tx, error) {
+	panic("not used by Summary")
+}
+
+type stubTxRepo struct{}
+
+func (stubTxRepo) List(_ context.Context, _ string, _, _ int) ([]*domain.Transaction, int, error) {
+	return nil, 0, nil
+}
+
+type stubExchangeTradeRepo struct{}
+
+func (stubExchangeTradeRepo) ListByWallet(_ context.Context, _ string) ([]*domain.ExchangeTrade, error) {
+	return nil, nil
+}
+
+// TestSummary_UnrealisedGain_MarkedToMarket is a regression test: RunFIFO (and
+// every other Run* method) only sets GainFiat on disposal, so a naive Summary
+// that just sums GainFiat for undisposed records always reports zero
+// unrealised gain. Summary must mark held lots to the current market price
+// instead.
+func TestSummary_UnrealisedGain_MarkedToMarket(t *testing.T) {
+	held := domain.CostBasisRecord{
+		ID: "cb1", WalletID: "wallet-1", CostSats: 1_000_000, CostFiat: 20_000,
+		FiatCurrency: "EUR", Method: domain.MethodFIFO,
+	}
+	svc := accounting.NewService(
+		stubTxDB{}, stubUTXORepo{},
+		&stubCBRepo{records: []*domain.CostBasisRecord{&held}},
+		&stubSummaryPriceRepo{priceCents: 2_500_000}, // 25,000 EUR/BTC
+		stubTxRepo{}, stubExchangeTradeRepo{},
+	)
+	sum, err := svc.Summary(context.Background(), "wallet-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.TotalCostFiat != 20_000 {
+		t.Errorf("TotalCostFiat = %d, want 20000", sum.TotalCostFiat)
+	}
+	// current value = 1,000,000 sats * 2,500,000 c/BTC / 1e8 = 25,000c; gain = 5,000c
+	if sum.UnrealisedGainFiat != 5_000 {
+		t.Errorf("UnrealisedGainFiat = %d, want 5000", sum.UnrealisedGainFiat)
+	}
+}
+
+// TestSummary_ExcludesDisposedFromCostBasis verifies that a disposed lot's
+// cost doesn't inflate TotalCostFiat/UnrealisedGainFiat, which represent
+// currently-held coins only (mirrored by RealisedGainFiat for what's gone).
+func TestSummary_ExcludesDisposedFromCostBasis(t *testing.T) {
+	disposedAt := time.Now()
+	gain := int64(5_000)
+	disposed := domain.CostBasisRecord{
+		ID: "cb2", WalletID: "wallet-1", CostSats: 500_000, CostFiat: 30_000,
+		FiatCurrency: "EUR", Method: domain.MethodFIFO,
+		DisposedAt: &disposedAt, GainFiat: &gain,
+	}
+	svc := accounting.NewService(
+		stubTxDB{}, stubUTXORepo{},
+		&stubCBRepo{records: []*domain.CostBasisRecord{&disposed}},
+		&stubSummaryPriceRepo{priceCents: 2_500_000},
+		stubTxRepo{}, stubExchangeTradeRepo{},
+	)
+	sum, err := svc.Summary(context.Background(), "wallet-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.TotalCostFiat != 0 {
+		t.Errorf("TotalCostFiat = %d, want 0 (only disposed lot exists)", sum.TotalCostFiat)
+	}
+	if sum.UnrealisedGainFiat != 0 {
+		t.Errorf("UnrealisedGainFiat = %d, want 0", sum.UnrealisedGainFiat)
+	}
+	if sum.RealisedGainFiat != 5_000 {
+		t.Errorf("RealisedGainFiat = %d, want 5000", sum.RealisedGainFiat)
 	}
 }

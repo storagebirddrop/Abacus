@@ -157,7 +157,7 @@ func main() {
 	reportHandler := api.NewReportHandler(walletRepo, txRepo, utxoRepo, cbRepo, priceRepo)
 	syncHandler := api.NewSyncHandler(syncSvc, syncJobRepo, walletRepo)
 	ledgerHandler := api.NewLedgerHandler(walletRepo, ledgerRepo, journalRepo, utxoRepo)
-	portfolioHandler := api.NewPortfolioHandler(walletRepo, cbRepo, utxoRepo)
+	portfolioHandler := api.NewPortfolioHandler(walletRepo, cbRepo, utxoRepo, priceRepo)
 	settingsHandler := api.NewSettingsHandler(settingsRepo)
 	sec := api.SecurityConfig{APIToken: cfg.APIToken, RateLimitRPM: cfg.RateLimitRPM, TrustProxy: cfg.TrustProxy}
 	if sec.APIToken != "" {
