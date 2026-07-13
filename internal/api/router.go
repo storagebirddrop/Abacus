@@ -80,6 +80,7 @@ func NewRouter(version string, wh *WalletHandler, ah *AccountingHandler, rh *Rep
 
 		// Portfolio (cross-wallet)
 		r.Get("/portfolio/summary", ph.GetPortfolioSummary)
+		r.Get("/portfolio/history", ph.GetPortfolioHistory)
 	})
 
 	// Serve frontend SPA — all non-API routes fall through to index.html

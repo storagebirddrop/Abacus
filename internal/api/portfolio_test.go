@@ -49,9 +49,25 @@ func (s *stubPortfolioPrice) GetClosest(_ context.Context, currency string, _ ti
 	return &domain.PriceSnapshot{Currency: currency, PriceFiat: s.priceCents, Source: "test"}, nil
 }
 
+func (s *stubPortfolioPrice) List(_ context.Context, currency string, _, _ time.Time) ([]*domain.PriceSnapshot, error) {
+	if s.priceCents == 0 {
+		return nil, nil
+	}
+	return []*domain.PriceSnapshot{{Currency: currency, PriceFiat: s.priceCents, Source: "test", Timestamp: time.Now().UTC()}}, nil
+}
+
+type stubPortfolioLedger struct {
+	entries []*domain.LedgerEntry
+}
+
+func (s *stubPortfolioLedger) ListAllOrdered(_ context.Context) ([]*domain.LedgerEntry, error) {
+	return s.entries, nil
+}
+
 func portfolioRouter(h *PortfolioHandler) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/portfolio/summary", h.GetPortfolioSummary)
+	r.Get("/portfolio/history", h.GetPortfolioHistory)
 	return r
 }
 
@@ -61,6 +77,7 @@ func TestPortfolioSummary_Empty(t *testing.T) {
 		&stubPortfolioCB{records: map[string][]*domain.CostBasisRecord{}},
 		&stubPortfolioUTXOs{utxos: map[string][]*domain.UTXO{}},
 		&stubPortfolioPrice{},
+		&stubPortfolioLedger{},
 	)
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
 	rec := httptest.NewRecorder()
@@ -106,6 +123,7 @@ func TestPortfolioSummary_TwoWallets(t *testing.T) {
 			"w2": {{WalletID: "w2", Sats: 500_000}},
 		}},
 		&stubPortfolioPrice{priceCents: 2_500_000},
+		&stubPortfolioLedger{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
@@ -150,6 +168,7 @@ func TestPortfolioSummary_NoAccountingRun(t *testing.T) {
 			"w1": {{WalletID: "w1", Sats: 2_000_000}},
 		}},
 		&stubPortfolioPrice{},
+		&stubPortfolioLedger{},
 	)
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
 	rec := httptest.NewRecorder()
@@ -165,5 +184,51 @@ func TestPortfolioSummary_NoAccountingRun(t *testing.T) {
 	}
 	if body.TotalCostFiat != 0 {
 		t.Errorf("TotalCostFiat should be 0 before accounting run, got %d", body.TotalCostFiat)
+	}
+}
+
+func TestPortfolioHistory_CumulativeBalance(t *testing.T) {
+	now := time.Now().UTC()
+	twoDaysAgo := now.AddDate(0, 0, -2)
+	yesterday := now.AddDate(0, 0, -1)
+
+	h := NewPortfolioHandler(
+		&stubPortfolioWallets{},
+		&stubPortfolioCB{},
+		&stubPortfolioUTXOs{},
+		&stubPortfolioPrice{priceCents: 2_000_000}, // 20,000/BTC, held constant across the range
+		&stubPortfolioLedger{entries: []*domain.LedgerEntry{
+			{ID: "e1", WalletID: "w1", Type: domain.EntryTypeCredit, Sats: 1_000_000, CreatedAt: twoDaysAgo},
+			{ID: "e2", WalletID: "w1", Type: domain.EntryTypeDebit, Sats: 400_000, CreatedAt: yesterday},
+		}},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/portfolio/history?days=5", nil)
+	rec := httptest.NewRecorder()
+	portfolioRouter(h).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var points []PortfolioHistoryPoint
+	if err := json.NewDecoder(rec.Body).Decode(&points); err != nil {
+		t.Fatal(err)
+	}
+	if len(points) == 0 {
+		t.Fatal("expected at least one point")
+	}
+	last := points[len(points)-1]
+	if last.TotalSats != 600_000 {
+		t.Errorf("final TotalSats = %d, want 600000 (1,000,000 credit - 400,000 debit)", last.TotalSats)
+	}
+	// 600,000 sats * 2,000,000 c/BTC / 1e8 = 12,000 cents
+	if last.FiatValue != 12_000 {
+		t.Errorf("final FiatValue = %d, want 12000", last.FiatValue)
+	}
+	// The series starts on the day of the first ledger entry, so day one
+	// already reflects that day's credit.
+	first := points[0]
+	if first.TotalSats != 1_000_000 {
+		t.Errorf("first point TotalSats = %d, want 1000000", first.TotalSats)
 	}
 }

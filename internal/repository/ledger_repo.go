@@ -61,6 +61,31 @@ func (r *LedgerRepo) ListByWallet(ctx context.Context, walletID string, limit, o
 	return entries, total, rows.Err()
 }
 
+// ListAllOrdered returns every ledger entry across all wallets, ordered by
+// created_at ascending. Used to reconstruct a cumulative sats balance over
+// time for the portfolio history chart.
+func (r *LedgerRepo) ListAllOrdered(ctx context.Context) ([]*domain.LedgerEntry, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, wallet_id, COALESCE(transaction_id,''), COALESCE(exchange_trade_id,''),
+		        type, sats, fiat_amount, fiat_currency,
+		        COALESCE(price_snapshot_id,''), category, COALESCE(counterparty_id,''), note, created_at
+		 FROM ledger_entries
+		 ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []*domain.LedgerEntry
+	for rows.Next() {
+		e, err := scanLedgerEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // ListByTransaction returns all ledger entries for a specific transaction within a wallet.
 func (r *LedgerRepo) ListByTransaction(ctx context.Context, walletID, transactionID string) ([]*domain.LedgerEntry, error) {
 	rows, err := r.db.QueryContext(ctx,

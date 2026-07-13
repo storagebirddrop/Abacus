@@ -66,7 +66,7 @@ internal/api/               HTTP handlers and router
   ledger.go                 ledger entry + UTXO handlers
   reports.go                CSV/PDF/XLSX report handlers + tax report handler
   sync.go                   blockchain sync handlers
-  portfolio.go              cross-wallet portfolio summary handler
+  portfolio.go              cross-wallet portfolio summary + history handler
   settings.go               GET/PATCH /settings — blockchain sync config
 internal/reports/           report generators
   data.go                   shared data structs (TransactionRow, PnLRow, BalanceRow)
@@ -212,6 +212,7 @@ Spec: `docs/api/swagger.yaml`.
 
 ### Portfolio
 - `GET /api/v1/portfolio/summary` — cross-wallet portfolio summary
+- `GET /api/v1/portfolio/history` — daily cumulative BTC balance + fiat value across all wallets, reconstructed from ledger entries and marked to the closest known price snapshot (`currency`, `days`; used by the dashboard history chart)
 
 ### Settings
 - `GET /api/v1/settings` — current sync config with defaults

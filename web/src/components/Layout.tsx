@@ -15,22 +15,25 @@ export default function Layout() {
   const { theme, toggle } = useTheme()
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen bg-background text-foreground">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-slate-900 focus:px-3 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
       >
         Skip to content
       </a>
 
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-slate-900 text-white px-4 h-12">
-        <span className="font-bold tracking-tight">Abacus</span>
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-card border-b border-border px-4 h-12">
+        <span className="font-bold tracking-tight flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+          Abacus
+        </span>
         <button
           aria-label="Open navigation menu"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="p-1"
+          className="p-1 text-muted-foreground"
         >
           <Menu size={20} />
         </button>
@@ -39,7 +42,7 @@ export default function Layout() {
       {/* Backdrop for the mobile drawer */}
       {open && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/40"
+          className="md:hidden fixed inset-0 z-30 bg-black/60"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -47,25 +50,28 @@ export default function Layout() {
 
       <aside
         className={cn(
-          'bg-slate-900 text-white flex flex-col z-40',
-          'fixed inset-y-0 left-0 w-64 transform transition-transform md:static md:w-48 md:translate-x-0',
+          'bg-card border-r border-border flex flex-col z-40',
+          'fixed inset-y-0 left-0 w-64 transform transition-transform md:static md:w-52 md:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="px-4 py-5 border-b border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-5 border-b border-border flex items-center justify-between">
           <div>
-            <span className="font-bold text-lg tracking-tight">Abacus</span>
-            <p className="text-xs text-slate-400 mt-0.5">Bitcoin Accounting</p>
+            <span className="font-bold text-lg tracking-tight flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+              Abacus
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">Bitcoin Accounting</p>
           </div>
           <button
             aria-label="Close navigation menu"
             onClick={() => setOpen(false)}
-            className="md:hidden p-1"
+            className="md:hidden p-1 text-muted-foreground"
           >
             <X size={20} />
           </button>
         </div>
-        <nav aria-label="Primary" className="flex-1 px-2 py-4 space-y-1">
+        <nav aria-label="Primary" className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map(({ to, label }) => (
             <NavLink
               key={to}
@@ -74,10 +80,10 @@ export default function Layout() {
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  'block px-3 py-2 rounded-md text-sm transition-colors',
+                  'block px-3 py-2 rounded-md text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-slate-700 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                 )
               }
             >
@@ -85,11 +91,11 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-2 py-3 border-t border-slate-700">
+        <div className="px-3 py-3 border-t border-border">
           <button
             onClick={toggle}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {theme === 'dark' ? 'Light mode' : 'Dark mode'}

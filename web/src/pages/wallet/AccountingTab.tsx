@@ -61,12 +61,12 @@ export function AccountingTab({ walletID }: { walletID: string }) {
   return (
     <div className="space-y-6">
       {loadError && (
-        <p role="alert" className="text-sm text-red-500">{loadError}</p>
+        <p role="alert" className="text-sm text-destructive">{loadError}</p>
       )}
 
-      <form onSubmit={handleRun} className="flex flex-wrap items-end gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
+      <form onSubmit={handleRun} className="flex flex-wrap items-end gap-4 bg-card border border-border rounded-lg p-4">
         <div>
-          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Method</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Method</label>
           <Select value={method} onValueChange={(v) => setMethod(v as AccountingMethod)}>
             <SelectTrigger className="w-36">
               <SelectValue />
@@ -82,7 +82,7 @@ export function AccountingTab({ walletID }: { walletID: string }) {
           </Select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Currency</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Currency</label>
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger className="w-24">
               <SelectValue />
@@ -97,7 +97,7 @@ export function AccountingTab({ walletID }: { walletID: string }) {
         <Button type="submit" disabled={running}>
           {running ? 'Running…' : 'Run Accounting'}
         </Button>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </form>
 
       {summary && (
@@ -107,8 +107,8 @@ export function AccountingTab({ walletID }: { walletID: string }) {
             { label: 'Unrealised Gain', value: fmtCents(summary.unrealised_gain_fiat, currency) },
             { label: 'Realised Gain', value: fmtCents(summary.realised_gain_fiat, currency) },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+            <div key={label} className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
               <p className="text-xl font-semibold mt-1">{value}</p>
             </div>
           ))}
@@ -121,34 +121,34 @@ export function AccountingTab({ walletID }: { walletID: string }) {
       </div>
 
       {records.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-secondary/60 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">UTXO</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Acquired</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Disposed</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Cost</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Proceeds</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Gain</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">UTXO</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Acquired</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Disposed</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Cost</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Proceeds</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Gain</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-border">
               {records.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">
+                <tr key={r.id} className="hover:bg-secondary">
+                  <td className="px-4 py-3 font-mono text-xs text-foreground">
                     {r.txid.slice(0, 10)}…:{r.vout}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {r.acquired_at ? new Date(r.acquired_at).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {r.disposed_at ? new Date(r.disposed_at).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">{fmtCents(r.cost_fiat, currency)}</td>
                   <td className="px-4 py-3 text-right">{fmtCents(r.proceeds_fiat ?? null, currency)}</td>
                   <td className={cn('px-4 py-3 text-right font-medium',
-                    r.gain_fiat != null && r.gain_fiat < 0 ? 'text-red-500' : 'text-green-600'
+                    r.gain_fiat != null && r.gain_fiat < 0 ? 'text-destructive' : 'text-success'
                   )}>
                     {fmtCents(r.gain_fiat ?? null, currency)}
                   </td>
