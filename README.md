@@ -212,6 +212,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Automated semver release on every `feat`/`fix` merge to `main` | ✅ |
 | Post-launch review pass — CI auto-release race, multisig OP_N bounds check, exchange-import dedup + currency bugs, unrealised-gain calculation | ✅ |
 | Dark-first design system — real theming (dark and light both fully token-based, not just a background swap), single accent color, portfolio value/BTC-holdings history chart on the dashboard | ✅ |
+| Governance & onboarding docs — CODE_OF_CONDUCT, production deployment guide, README screenshots (Portfolio, Transactions, Accounting, Reports, Import, Settings) | ✅ |
 | Accessibility audit (aria attributes, keyboard navigation) | 🔲 |
 | Bitcoin Core sync backend | 🔲 |
 
