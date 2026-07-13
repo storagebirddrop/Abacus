@@ -36,13 +36,17 @@ export default function Layout() {
     <div className="flex h-screen bg-background text-foreground">
       <a
         href="#main"
+        inert={open || undefined}
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
       >
         Skip to content
       </a>
 
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-card border-b border-border px-4 h-12">
+      <div
+        className="md:hidden fixed top-0 inset-x-0 z-30 flex items-center justify-between bg-card border-b border-border px-4 h-12"
+        inert={open || undefined}
+      >
         <span className="font-bold tracking-tight flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
           Abacus
@@ -68,7 +72,7 @@ export default function Layout() {
       )}
 
       <div
-        role="dialog"
+        role={open ? 'dialog' : undefined}
         aria-modal={open || undefined}
         aria-label="Primary navigation"
         className={cn(
