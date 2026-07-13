@@ -185,7 +185,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Backlog 6 — BIP329 label export + `POST /labels` | ✅ |
 | Backlog 7 — Linux AppImage packaging + GitHub Release CI | ✅ |
 | Settings — UI-driven blockchain sync config (opt-in, runtime-configurable) | ✅ |
-| Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, dark mode + a11y | ✅ |
+| Hardening — API auth/rate-limit + reverse-proxy IP, signed releases + checksums, Docker non-root, CI coverage gate + npm audit, server-side transaction search/sort/filter, responsive sidebar | ✅ |
 | Version baked into binary at build time via ldflags | ✅ |
 | Remote branch cleanup | ✅ |
 | Signed AppImage releases — see [Releases](https://github.com/storagebirddrop/Abacus/releases) for the latest | ✅ |
@@ -197,6 +197,8 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | UX workflow overhaul (transactions, accounting, reports, onboarding) | ✅ |
 | Automated semver release on every `feat`/`fix` merge to `main` | ✅ |
 | Post-launch review pass — CI auto-release race, multisig OP_N bounds check, exchange-import dedup + currency bugs, unrealised-gain calculation | ✅ |
+| Dark-first design system — real theming (dark and light both fully token-based, not just a background swap), single accent color, portfolio value/BTC-holdings history chart on the dashboard | ✅ |
+| Accessibility audit (aria attributes, keyboard navigation) | 🔲 |
 | Bitcoin Core sync backend | 🔲 |
 
 ## License

@@ -120,7 +120,9 @@ stored gain. `AccountingSummary` (`GET /accounting/summary`) and `PortfolioSumma
 (`GET /portfolio/summary`) are computed on read, not persisted: they mark held
 records to the latest known `PriceSnapshot` to derive an unrealised gain, and total
 cost basis only across still-held records (a disposed record's cost belongs to the
-realised side, not current holdings).
+realised side, not current holdings). `PortfolioHistoryPoint` (`GET /portfolio/history`)
+is likewise computed on read — a daily cumulative sats balance built from `LedgerEntry`
+rows, not a stored time series.
 
 ### PriceSnapshot
 Historical BTC price at a point in time. Used for fiat calculations.
