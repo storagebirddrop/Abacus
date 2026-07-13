@@ -32,8 +32,8 @@ function fmtCents(cents: number | null, currency: string) {
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4">
-      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+    <div className="bg-card border border-border rounded-lg p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-xl font-semibold mt-1">{value}</p>
     </div>
   )
@@ -95,28 +95,28 @@ export default function ReportsPage() {
     <div className="p-8 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Select a wallet and your tax jurisdiction, then generate and download all reports.
         </p>
       </div>
 
       {walletsLoading ? (
-        <p className="text-slate-500 dark:text-slate-400">Loading wallets…</p>
+        <p className="text-muted-foreground">Loading wallets…</p>
       ) : wallets.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
+        <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg">No wallets yet</p>
           <p className="text-sm mt-1">
-            <Link to="/wallets" className="underline hover:text-slate-600">Add a wallet</Link> to get started.
+            <Link to="/wallets" className="underline hover:text-muted-foreground">Add a wallet</Link> to get started.
           </p>
         </div>
       ) : (
         <form onSubmit={handleRun} className="space-y-6">
           {/* Step 1: Wallet + year */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
-            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">1. Select wallet and year</h2>
+          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+            <h2 className="text-sm font-medium text-foreground">1. Select wallet and year</h2>
             <div className="flex flex-wrap gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Wallet</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Wallet</label>
                 <Select value={walletID} onValueChange={setWalletID}>
                   <SelectTrigger className="w-56">
                     <SelectValue placeholder="Choose wallet" />
@@ -129,7 +129,7 @@ export default function ReportsPage() {
                 </Select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tax year</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Tax year</label>
                 <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
                   <SelectTrigger className="w-28">
                     <SelectValue />
@@ -145,10 +145,10 @@ export default function ReportsPage() {
           </div>
 
           {/* Step 2: Country / jurisdiction */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
-            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">2. Tax jurisdiction</h2>
+          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+            <h2 className="text-sm font-medium text-foreground">2. Tax jurisdiction</h2>
             <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Country of tax residence</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Country of tax residence</label>
               <Select value={country} onValueChange={(v) => { setCountry(v); setMethodOverride('') }}>
                 <SelectTrigger className="w-56">
                   <SelectValue />
@@ -160,22 +160,22 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Method: <span className="font-medium text-slate-700 dark:text-slate-200">{method.toUpperCase()}</span>
-              {' · '}Currency: <span className="font-medium text-slate-700 dark:text-slate-200">{currency}</span>
+            <p className="text-xs text-muted-foreground">
+              Method: <span className="font-medium text-foreground">{method.toUpperCase()}</span>
+              {' · '}Currency: <span className="font-medium text-foreground">{currency}</span>
             </p>
 
             {/* Advanced method override */}
             <button
               type="button"
               onClick={() => setAdvanced((v) => !v)}
-              className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+              className="text-xs text-muted-foreground hover:text-foreground underline"
             >
               {advanced ? 'Hide advanced options' : 'Override method (advanced)'}
             </button>
             {advanced && (
               <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Method override</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Method override</label>
                 <Select
                   value={methodOverride || cfg.method}
                   onValueChange={(v) => setMethodOverride(v as AccountingMethod)}
@@ -197,13 +197,13 @@ export default function ReportsPage() {
           </div>
 
           {/* Step 3: Price data note */}
-          <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+          <div className="text-sm text-muted-foreground flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
               Accounting uses BTC/{currency} price snapshots for fiat values.{' '}
-              <Link to="/prices" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+              <Link to="/prices" className="underline hover:text-foreground">
                 Manage price snapshots →
               </Link>
             </span>
@@ -214,7 +214,7 @@ export default function ReportsPage() {
             <Button type="submit" disabled={running || !walletID}>
               {running ? 'Running…' : 'Run Accounting'}
             </Button>
-            {runError && <p className="text-sm text-red-500">{runError}</p>}
+            {runError && <p className="text-sm text-destructive">{runError}</p>}
           </div>
 
           {/* Summary + downloads (shown after run or if prior data exists) */}
@@ -227,8 +227,8 @@ export default function ReportsPage() {
               </div>
 
               {base && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
-                  <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-4">Download reports</h2>
+                <div className="bg-card border border-border rounded-lg p-5">
+                  <h2 className="text-sm font-medium text-foreground mb-4">Download reports</h2>
                   <div className="space-y-3">
                     {cfg.jurisdiction && (
                       <ReportRow
@@ -285,10 +285,10 @@ function ReportRow({
   links: { fmt: string; href: string }[]
 }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
       <div>
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{label}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="flex gap-2">
         {links.map(({ fmt, href }) => (
@@ -298,9 +298,9 @@ function ReportRow({
             download
             className={cn(
               'text-xs px-2 py-1 rounded border uppercase font-mono',
-              'border-slate-200 dark:border-slate-700',
-              'hover:bg-slate-50 dark:hover:bg-slate-800',
-              'text-slate-600 dark:text-slate-300',
+              'border-border',
+              'hover:bg-secondary',
+              'text-muted-foreground',
             )}
           >
             {fmt}

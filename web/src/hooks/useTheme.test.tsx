@@ -15,30 +15,30 @@ function Probe() {
 
 beforeEach(() => {
   localStorage.clear()
-  document.documentElement.classList.remove('dark')
+  document.documentElement.classList.remove('light')
 })
 afterEach(() => {
   localStorage.clear()
-  document.documentElement.classList.remove('dark')
+  document.documentElement.classList.remove('light')
 })
 
 describe('useTheme', () => {
-  it('defaults to light and toggles to dark, applying the class + persisting', async () => {
+  it('defaults to dark and toggles to light, applying the class + persisting', async () => {
     render(<Probe />)
-    expect(screen.getByTestId('theme')).toHaveTextContent('light')
-    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+    expect(document.documentElement.classList.contains('light')).toBe(false)
 
     await userEvent.click(screen.getByRole('button', { name: 'toggle' }))
 
-    expect(screen.getByTestId('theme')).toHaveTextContent('dark')
-    expect(document.documentElement.classList.contains('dark')).toBe(true)
-    expect(localStorage.getItem('abacus-theme')).toBe('dark')
+    expect(screen.getByTestId('theme')).toHaveTextContent('light')
+    expect(document.documentElement.classList.contains('light')).toBe(true)
+    expect(localStorage.getItem('abacus-theme')).toBe('light')
   })
 
-  it('restores a persisted dark theme', () => {
-    localStorage.setItem('abacus-theme', 'dark')
+  it('restores a persisted light theme', () => {
+    localStorage.setItem('abacus-theme', 'light')
     render(<Probe />)
-    expect(screen.getByTestId('theme')).toHaveTextContent('dark')
-    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(screen.getByTestId('theme')).toHaveTextContent('light')
+    expect(document.documentElement.classList.contains('light')).toBe(true)
   })
 })

@@ -35,12 +35,12 @@ export function AdvancedTab({ walletID, walletName }: { walletID: string; wallet
       </section>
 
       <section>
-        <h2 className="text-base font-medium text-red-600 dark:text-red-400 mb-4">Danger Zone</h2>
-        <div className="border border-red-200 dark:border-red-900 rounded-lg p-4">
+        <h2 className="text-base font-medium text-destructive mb-4">Danger Zone</h2>
+        <div className="border border-destructive/30 rounded-lg p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Delete this wallet</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-sm font-medium text-foreground">Delete this wallet</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Permanently removes all transactions, ledger entries, and accounting data.
               </p>
             </div>
@@ -49,7 +49,7 @@ export function AdvancedTab({ walletID, walletName }: { walletID: string; wallet
               size="sm"
               aria-label={`Delete wallet ${walletName}`}
               onClick={handleDelete}
-              className="shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+              className="shrink-0 text-destructive hover:bg-destructive/10"
             >
               Delete wallet
             </Button>

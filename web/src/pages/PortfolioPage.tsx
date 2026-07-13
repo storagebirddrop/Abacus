@@ -18,10 +18,10 @@ function fmtCents(cents: number, currency: string): string {
 }
 
 function GainLabel({ cents, currency }: { cents: number; currency: string }) {
-  if (cents === 0) return <span className="text-slate-400">—</span>
+  if (cents === 0) return <span className="text-muted-foreground">—</span>
   const isPos = cents > 0
   return (
-    <span className={isPos ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}>
+    <span className={isPos ? 'text-success' : 'text-destructive'}>
       {isPos ? '+' : ''}{fmtCents(cents, currency)}
     </span>
   )
@@ -29,9 +29,9 @@ function GainLabel({ cents, currency }: { cents: number; currency: string }) {
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-semibold mt-1 text-slate-900 dark:text-slate-100">{value}</p>
+    <div className="bg-card border border-border rounded-lg p-5">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-2xl font-semibold mt-1 text-foreground">{value}</p>
       {sub && <p className="text-sm mt-0.5">{sub}</p>}
     </div>
   )
@@ -42,30 +42,30 @@ function WalletRow({ w }: { w: WalletSummary }) {
   const currency = w.fiat_currency ?? 'EUR'
 
   return (
-    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
+    <tr className="hover:bg-secondary">
       <td className="px-4 py-3">
         <Link
           to={`/wallets/${w.wallet_id}`}
-          className="font-medium text-slate-900 dark:text-slate-100 hover:underline"
+          className="font-medium text-foreground hover:underline"
         >
           {w.wallet_name}
         </Link>
       </td>
-      <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-700 dark:text-slate-200">
+      <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
         {fmtBTC(w.total_sats)}
       </td>
       <td className="px-4 py-3 text-right tabular-nums">
         {hasAccounting ? (
           <GainLabel cents={w.unrealised_gain_fiat} currency={currency} />
         ) : (
-          <span className="text-xs text-slate-400">no accounting</span>
+          <span className="text-xs text-muted-foreground">no accounting</span>
         )}
       </td>
       <td className="px-4 py-3 text-right tabular-nums">
         {hasAccounting ? (
           <GainLabel cents={w.realised_gain_fiat} currency={currency} />
         ) : (
-          <span className="text-xs text-slate-400">—</span>
+          <span className="text-xs text-muted-foreground">—</span>
         )}
       </td>
     </tr>
@@ -101,8 +101,8 @@ export default function PortfolioPage() {
         <AddWalletDialog onCreated={load} />
       </div>
 
-      {loading && <p className="text-slate-500 dark:text-slate-400">Loading…</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <p className="text-muted-foreground">Loading…</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       {!loading && summary !== null && (
         <>
@@ -133,7 +133,7 @@ export default function PortfolioPage() {
               />
             </div>
           ) : (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-muted-foreground">
               <p className="text-lg">No wallets yet</p>
               <p className="text-sm mt-1">
                 Add a wallet by importing a Sparrow, Nunchuk, Coldcard, or other export file.
@@ -143,27 +143,27 @@ export default function PortfolioPage() {
 
           {/* Wallet table */}
           {hasWallets && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <thead className="bg-secondary/60 border-b border-border">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Wallet</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Holdings</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Wallet</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Holdings</th>
                     <th className={cn(
-                      'text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300',
+                      'text-right px-4 py-3 font-medium text-muted-foreground',
                       !hasAccounting && 'opacity-40'
                     )}>
                       Unrealised Gain
                     </th>
                     <th className={cn(
-                      'text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300',
+                      'text-right px-4 py-3 font-medium text-muted-foreground',
                       !hasAccounting && 'opacity-40'
                     )}>
                       Realised Gain
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-border">
                   {summary.wallets.map((w) => (
                     <WalletRow key={w.wallet_id} w={w} />
                   ))}
@@ -174,7 +174,7 @@ export default function PortfolioPage() {
 
           {/* Accounting note */}
           {hasWallets && !hasAccounting && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
+            <p className="text-xs text-muted-foreground mt-3">
               Run accounting on a wallet to see fiat gain/loss figures.
             </p>
           )}

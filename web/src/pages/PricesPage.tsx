@@ -47,7 +47,7 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
             <label className="block text-sm font-medium mb-1">Date</label>
             <input
               type="date"
-              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
@@ -59,7 +59,7 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
               type="number"
               step="0.01"
               min="0"
-              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="30000.00"
@@ -69,13 +69,13 @@ function AddPriceDialog({ currency, onCreated }: { currency: string; onCreated: 
           <div>
             <label className="block text-sm font-medium mb-1">Source</label>
             <input
-              className="w-full border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="manual"
             />
           </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</Button>
@@ -134,14 +134,14 @@ function CoinGeckoFetchPanel({ currency, onFetched }: { currency: string; onFetc
         {fetching ? 'Fetching…' : 'Fetch from CoinGecko'}
       </Button>
       {result && (
-        <span className="text-sm text-slate-500 dark:text-slate-400">
+        <span className="text-sm text-muted-foreground">
           {result.fetched > 0
             ? `Fetched ${result.fetched} price${result.fetched !== 1 ? 's' : ''}`
             : 'All dates already covered'}
           {result.skipped > 0 && `, ${result.skipped} skipped`}
         </span>
       )}
-      {error && <span className="text-sm text-red-500">{error}</span>}
+      {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   )
 }
@@ -195,7 +195,7 @@ export default function PricesPage() {
         <h1 className="text-2xl font-semibold">Price Snapshots</h1>
         <div className="flex flex-wrap items-center gap-3">
           <CoinGeckoFetchPanel currency={currency} onFetched={load} />
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+          <div className="w-px h-6 bg-border" />
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger className="w-24">
               <SelectValue />
@@ -210,44 +210,44 @@ export default function PricesPage() {
         </div>
       </div>
 
-      {loading && <p className="text-slate-500 dark:text-slate-400">Loading…</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <p className="text-muted-foreground">Loading…</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       {!loading && prices.length === 0 && (
-        <div className="text-center py-16 text-slate-400">
+        <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg">No price snapshots</p>
           <p className="text-sm mt-1">Add manual prices so accounting can compute fiat values.</p>
         </div>
       )}
 
       {prices.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-secondary/60 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
-                  <button className="hover:text-slate-900" onClick={() => toggleSort('date')}>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  <button className="hover:text-foreground" onClick={() => toggleSort('date')}>
                     Date{sortKey === 'date' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 </th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
-                  <button className="hover:text-slate-900" onClick={() => toggleSort('price')}>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  <button className="hover:text-foreground" onClick={() => toggleSort('price')}>
                     Price ({currency}/BTC){sortKey === 'price' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-border">
               {sorted.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                <tr key={p.id} className="hover:bg-secondary">
+                  <td className="px-4 py-3 text-foreground">
                     {new Date(p.timestamp).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">
                     {(p.price_fiat / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{p.source}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.source}</td>
                 </tr>
               ))}
             </tbody>

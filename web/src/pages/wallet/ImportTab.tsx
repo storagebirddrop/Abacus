@@ -77,13 +77,13 @@ export function ImportTab({ walletID }: { walletID: string }) {
   return (
     <div className="space-y-6">
       {loadError && (
-        <p role="alert" className="text-sm text-red-500">{loadError}</p>
+        <p role="alert" className="text-sm text-destructive">{loadError}</p>
       )}
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-4">
+      <div className="bg-card border border-border rounded-lg p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Upload wallet export</label>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          <p className="text-xs text-muted-foreground mb-3">
             Supported formats: Sparrow (JSON, CSV, BIP329 .jsonl) · Nunchuk (JSON, BSMS, BIP329 .jsonl) ·
             Coldcard (coldcard-export.json) · Specter Desktop (JSON descriptor export) ·
             Electrum (JSON wallet export, unencrypted only) · Generic JSON with descriptor field (Jade, Passport, SeedSigner, etc.)
@@ -98,15 +98,15 @@ export function ImportTab({ walletID }: { walletID: string }) {
             className={cn(
               'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center cursor-pointer transition-colors',
               dragOver
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500',
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-primary/50',
               uploading && 'pointer-events-none opacity-60',
             )}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
-            <span className="text-sm text-slate-600 dark:text-slate-300">
+            <span className="text-sm text-muted-foreground">
               {dragOver ? 'Drop to import' : 'Drag & drop a file here, or click to browse'}
             </span>
             <input
@@ -120,43 +120,43 @@ export function ImportTab({ walletID }: { walletID: string }) {
           </div>
         </div>
 
-        {status && <p className="text-sm text-slate-600 dark:text-slate-300">{status}</p>}
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {status && <p className="text-sm text-muted-foreground">{status}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
       {jobs.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+            <thead className="bg-secondary/60 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">File</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Source</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Records</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Started</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Source</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Records</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Started</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-border">
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{j.filename || '—'}</td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 capitalize">{j.source}</td>
+                  <td className="px-4 py-3 text-foreground">{j.filename || '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground capitalize">{j.source}</td>
                   <td className="px-4 py-3">
                     <span className={cn(
                       'text-xs px-2 py-0.5 rounded-full',
-                      j.status === 'done' && 'bg-green-100 text-green-700',
-                      j.status === 'failed' && 'bg-red-100 text-red-700',
+                      j.status === 'done' && 'bg-green-100 text-success',
+                      j.status === 'failed' && 'bg-red-100 text-destructive',
                       j.status === 'running' && 'bg-blue-100 text-blue-700',
-                      j.status === 'pending' && 'bg-slate-100 text-slate-600 dark:text-slate-300',
+                      j.status === 'pending' && 'bg-secondary text-muted-foreground',
                     )}>
                       {j.status}
                     </span>
                     {j.error_message && (
-                      <span className="ml-2 text-xs text-red-500">{j.error_message}</span>
+                      <span className="ml-2 text-xs text-destructive">{j.error_message}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">{j.records_imported ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                  <td className="px-4 py-3 text-right text-muted-foreground">{j.records_imported ?? '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
                     {j.started_at ? new Date(j.started_at).toLocaleString() : '—'}
                   </td>
                 </tr>

@@ -37,14 +37,14 @@ export default function WalletPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">{wallet?.name ?? 'Wallet'}</h1>
         {wallet?.fingerprint && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-mono mt-0.5">{wallet.fingerprint}</p>
+          <p className="text-sm text-muted-foreground font-mono mt-0.5">{wallet.fingerprint}</p>
         )}
         {loadError && (
-          <p role="alert" className="text-sm text-red-500 mt-1">{loadError}</p>
+          <p role="alert" className="text-sm text-destructive mt-1">{loadError}</p>
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800 mb-6">
+      <div className="flex gap-1 border-b border-border mb-6">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
@@ -52,8 +52,8 @@ export default function WalletPage() {
             className={cn(
               'px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors',
               tab === key
-                ? 'border-slate-900 text-slate-900 dark:text-slate-100'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'border-border text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             {label}
