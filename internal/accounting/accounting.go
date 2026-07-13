@@ -9,6 +9,16 @@ import (
 	"github.com/storagebirddrop/abacus/internal/domain"
 )
 
+// unrealisedGainFiat mark-to-market values a held (undisposed) lot at
+// currentPriceCents and returns the gain/loss vs. its recorded cost.
+// Returns 0 if the current price is unknown.
+func unrealisedGainFiat(costSats, costFiat, currentPriceCents int64) int64 {
+	if currentPriceCents == 0 {
+		return 0
+	}
+	return satsToFiat(costSats, currentPriceCents) - costFiat
+}
+
 // PriceLookup returns the BTC price in fiat cents for the given currency at time t.
 // Returns 0 if no price data is available (proceeds/gain will be stored as 0).
 type PriceLookup func(currency string, t time.Time) int64
@@ -178,14 +188,25 @@ func (s *Service) Summary(ctx context.Context, walletID string) (*AccountingSumm
 		FiatCurrency: records[0].FiatCurrency,
 		ComputedAt:   time.Now().UTC(),
 	}
+
+	// Held (undisposed) lots have no GainFiat — RunFIFO/RunAvgCost/etc. only
+	// set it on disposal. Mark them to market against the current price so
+	// "unrealised gain" isn't silently always zero.
+	var currentPrice int64
+	if snap, err := s.priceRepo.GetClosest(ctx, sum.FiatCurrency, sum.ComputedAt); err == nil && snap != nil {
+		currentPrice = snap.PriceFiat
+	}
+
 	for _, r := range records {
-		sum.TotalCostSats += r.CostSats
-		sum.TotalCostFiat += r.CostFiat
 		if r.DisposedAt != nil && r.GainFiat != nil {
 			sum.RealisedGainFiat += *r.GainFiat
-		} else if r.GainFiat != nil {
-			sum.UnrealisedGainFiat += *r.GainFiat
+			continue
 		}
+		// Still held: cost basis and unrealised gain both count against
+		// current holdings only, not coins already disposed of.
+		sum.TotalCostSats += r.CostSats
+		sum.TotalCostFiat += r.CostFiat
+		sum.UnrealisedGainFiat += unrealisedGainFiat(r.CostSats, r.CostFiat, currentPrice)
 	}
 	return sum, nil
 }

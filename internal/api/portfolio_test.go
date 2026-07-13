@@ -38,6 +38,17 @@ func (s *stubPortfolioUTXOs) ListByWallet(_ context.Context, walletID string, _ 
 	return s.utxos[walletID], nil
 }
 
+type stubPortfolioPrice struct {
+	priceCents int64 // 0 = no price known
+}
+
+func (s *stubPortfolioPrice) GetClosest(_ context.Context, currency string, _ time.Time) (*domain.PriceSnapshot, error) {
+	if s.priceCents == 0 {
+		return nil, nil
+	}
+	return &domain.PriceSnapshot{Currency: currency, PriceFiat: s.priceCents, Source: "test"}, nil
+}
+
 func portfolioRouter(h *PortfolioHandler) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/portfolio/summary", h.GetPortfolioSummary)
@@ -49,6 +60,7 @@ func TestPortfolioSummary_Empty(t *testing.T) {
 		&stubPortfolioWallets{wallets: []*domain.Wallet{}},
 		&stubPortfolioCB{records: map[string][]*domain.CostBasisRecord{}},
 		&stubPortfolioUTXOs{utxos: map[string][]*domain.UTXO{}},
+		&stubPortfolioPrice{},
 	)
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
 	rec := httptest.NewRecorder()
@@ -73,15 +85,17 @@ func TestPortfolioSummary_TwoWallets(t *testing.T) {
 	w1 := &domain.Wallet{ID: "w1", Name: "Hot Wallet", Network: domain.NetworkMainnet}
 	w2 := &domain.Wallet{ID: "w2", Name: "Cold Storage", Network: domain.NetworkMainnet}
 
-	gain1 := int64(10_000)  // 100 EUR unrealised
-	gain2 := int64(5_000)   // 50 EUR realised
+	gain2 := int64(5_000) // 50 EUR realised
 	disposed := time.Now()
 
 	h := NewPortfolioHandler(
 		&stubPortfolioWallets{wallets: []*domain.Wallet{w1, w2}},
 		&stubPortfolioCB{records: map[string][]*domain.CostBasisRecord{
+			// w1's lot is still held: cost 20,000c for 1,000,000 sats (0.01 BTC).
+			// At a current price of 2,500,000c/BTC it's worth 25,000c, i.e. a
+			// 5,000c (50 EUR) unrealised gain.
 			"w1": {
-				{ID: "cb1", WalletID: "w1", CostFiat: 20_000, FiatCurrency: "EUR", Method: domain.MethodFIFO, GainFiat: &gain1},
+				{ID: "cb1", WalletID: "w1", CostSats: 1_000_000, CostFiat: 20_000, FiatCurrency: "EUR", Method: domain.MethodFIFO},
 			},
 			"w2": {
 				{ID: "cb2", WalletID: "w2", CostFiat: 30_000, FiatCurrency: "EUR", Method: domain.MethodFIFO, DisposedAt: &disposed, ProceedsFiat: &gain2, GainFiat: &gain2},
@@ -91,6 +105,7 @@ func TestPortfolioSummary_TwoWallets(t *testing.T) {
 			"w1": {{WalletID: "w1", Sats: 1_000_000}},
 			"w2": {{WalletID: "w2", Sats: 500_000}},
 		}},
+		&stubPortfolioPrice{priceCents: 2_500_000},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
@@ -110,11 +125,12 @@ func TestPortfolioSummary_TwoWallets(t *testing.T) {
 	if body.TotalSats != 1_500_000 {
 		t.Errorf("TotalSats = %d, want 1500000", body.TotalSats)
 	}
-	if body.TotalCostFiat != 50_000 {
-		t.Errorf("TotalCostFiat = %d, want 50000", body.TotalCostFiat)
+	// Only w1's held lot counts toward cost basis — w2's lot was disposed.
+	if body.TotalCostFiat != 20_000 {
+		t.Errorf("TotalCostFiat = %d, want 20000", body.TotalCostFiat)
 	}
-	if body.UnrealisedGainFiat != 10_000 {
-		t.Errorf("UnrealisedGainFiat = %d, want 10000", body.UnrealisedGainFiat)
+	if body.UnrealisedGainFiat != 5_000 {
+		t.Errorf("UnrealisedGainFiat = %d, want 5000", body.UnrealisedGainFiat)
 	}
 	if body.RealisedGainFiat != 5_000 {
 		t.Errorf("RealisedGainFiat = %d, want 5000", body.RealisedGainFiat)
@@ -133,6 +149,7 @@ func TestPortfolioSummary_NoAccountingRun(t *testing.T) {
 		&stubPortfolioUTXOs{utxos: map[string][]*domain.UTXO{
 			"w1": {{WalletID: "w1", Sats: 2_000_000}},
 		}},
+		&stubPortfolioPrice{},
 	)
 	req := httptest.NewRequest(http.MethodGet, "/portfolio/summary", nil)
 	rec := httptest.NewRecorder()
