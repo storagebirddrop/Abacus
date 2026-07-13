@@ -191,7 +191,7 @@ Spec: `docs/api/swagger.yaml`.
 
 ### Accounting
 - `POST /api/v1/wallets/{id}/accounting/run` — run cost basis (`method`: fifo|avgcost|lifo|hifo|specificid|section104)
-- `GET /api/v1/wallets/{id}/accounting/summary` — portfolio summary
+- `GET /api/v1/wallets/{id}/accounting/summary` — wallet accounting summary (cost basis, realised/unrealised gain — unrealised is marked to the latest known price)
 - `GET /api/v1/wallets/{id}/accounting/cost-basis` — per-UTXO records
 
 ### Prices

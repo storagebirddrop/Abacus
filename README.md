@@ -191,6 +191,12 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Signed AppImage releases — see [Releases](https://github.com/storagebirddrop/Abacus/releases) for the latest | ✅ |
 | Drag-and-drop import zone in the UI | ✅ |
 | Exchange account imports (Bitvavo, Bitonic, Kraken, Coinbase, Strike) | ✅ |
+| Multisig blockchain sync (`wsh(sortedmulti(...))`/`wsh(multi(...))`, up to 16-of-16) | ✅ |
+| CoinGecko auto price-fetch (`POST /prices/fetch`) | ✅ |
+| Portfolio dashboard (cross-wallet home screen) | ✅ |
+| UX workflow overhaul (transactions, accounting, reports, onboarding) | ✅ |
+| Automated semver release on every `feat`/`fix` merge to `main` | ✅ |
+| Post-launch review pass — CI auto-release race, multisig OP_N bounds check, exchange-import dedup + currency bugs, unrealised-gain calculation | ✅ |
 | Bitcoin Core sync backend | 🔲 |
 
 ## License

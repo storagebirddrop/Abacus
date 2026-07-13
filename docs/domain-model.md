@@ -115,6 +115,13 @@ Result of an accounting run. One record per UTXO acquisition/disposal.
 | proceeds_fiat | int | Disposal proceeds in cents |
 | gain_fiat | int | Realized gain/loss in cents |
 
+`gain_fiat` is only ever set on disposal — held (`disposed_at` null) records have no
+stored gain. `AccountingSummary` (`GET /accounting/summary`) and `PortfolioSummary`
+(`GET /portfolio/summary`) are computed on read, not persisted: they mark held
+records to the latest known `PriceSnapshot` to derive an unrealised gain, and total
+cost basis only across still-held records (a disposed record's cost belongs to the
+realised side, not current holdings).
+
 ### PriceSnapshot
 Historical BTC price at a point in time. Used for fiat calculations.
 

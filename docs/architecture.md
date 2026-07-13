@@ -95,6 +95,10 @@
 - Auto-routing in `Service.Run()`: if exchange trades exist for the wallet → exchange path; otherwise → UTXO path
 - Methods: FIFO, Average Cost, LIFO, HIFO, Specific Identification, UK Section 104
 - UK Section 104 implements TCGA 1992 s.104/105/106A: same-day rule → 30-day rule → pool
+- `CostBasisRecord.gain_fiat` is realized gain only, set on disposal. `Service.Summary()`
+  and the portfolio handler (`internal/api/portfolio.go`) mark still-held records to the
+  latest `PriceSnapshot` to derive unrealised gain at read time — this is not a pure
+  function like `Run*`, since it depends on the current price
 
 ### Report Engine
 - Generic reports: transactions list, P&L, balance sheet (CSV / PDF / XLSX)
