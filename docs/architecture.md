@@ -99,6 +99,10 @@
   and the portfolio handler (`internal/api/portfolio.go`) mark still-held records to the
   latest `PriceSnapshot` to derive unrealised gain at read time — this is not a pure
   function like `Run*`, since it depends on the current price
+- `GET /portfolio/history` reconstructs a daily cumulative sats balance across every wallet
+  from raw `LedgerEntry` credit/debit rows (not stored as a series) and marks each day to the
+  closest known `PriceSnapshot`, holding the last known price forward across gaps — backs the
+  dashboard's portfolio value/holdings chart
 
 ### Report Engine
 - Generic reports: transactions list, P&L, balance sheet (CSV / PDF / XLSX)
