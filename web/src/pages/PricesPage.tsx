@@ -190,7 +190,7 @@ export default function PricesPage() {
   useEffect(() => { load() }, [currency])
 
   return (
-    <div className="p-8">
+    <div className="page-surface p-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold">Price Snapshots</h1>
         <div className="flex flex-wrap items-center gap-3">

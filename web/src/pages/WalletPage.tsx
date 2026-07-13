@@ -33,7 +33,7 @@ export default function WalletPage() {
   ]
 
   return (
-    <div className="p-8">
+    <div className="page-surface p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">{wallet?.name ?? 'Wallet'}</h1>
         {wallet?.fingerprint && (

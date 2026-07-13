@@ -132,6 +132,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Faint radial glow anchored top-left of the content area so empty space
+   on wide screens reads as considered negative space, not an unfinished
+   page. Subtle by design — barely visible, just enough to keep a large
+   viewport from feeling like a void past the content column. */
+.page-surface {
+  position: relative;
+  min-height: 100%;
+}
+.page-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 900px 500px at 15% 0%,
+    hsl(var(--primary) / 0.08),
+    transparent 60%
+  );
+  pointer-events: none;
+}
+.light .page-surface::before {
+  background: radial-gradient(
+    ellipse 900px 500px at 15% 0%,
+    hsl(var(--primary) / 0.05),
+    transparent 60%
+  );
+}
+
 /* Numeric/financial data — tabular figures + monospace so columns of
    BTC amounts, fiat values, and txids align and don't jiggle on hover. */
 .font-mono,

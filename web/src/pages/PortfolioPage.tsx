@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowUpDown, FileDown, Upload, Wifi } from 'lucide-react'
 import { getPortfolioSummary, type PortfolioSummary, type WalletSummary } from '../api/portfolio'
 import { AddWalletDialog } from '../components/AddWalletDialog'
 import { cn } from '../lib/utils'
@@ -34,6 +35,30 @@ function SummaryCard({ label, value, sub }: { label: string; value: string; sub?
       <p className="text-2xl font-semibold mt-1 text-foreground">{value}</p>
       {sub && <p className="text-sm mt-0.5">{sub}</p>}
     </div>
+  )
+}
+
+function QuickAction({
+  to, icon: Icon, label, description,
+}: {
+  to: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string
+  description: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-start gap-3 bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors group"
+    >
+      <div className="shrink-0 h-9 w-9 rounded-md bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary/15">
+        <Icon size={18} />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
+    </Link>
   )
 }
 
@@ -95,7 +120,7 @@ export default function PortfolioPage() {
     : 'EUR'
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="page-surface p-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Portfolio</h1>
         <AddWalletDialog onCreated={load} />
@@ -177,6 +202,39 @@ export default function PortfolioPage() {
             <p className="text-xs text-muted-foreground mt-3">
               Run accounting on a wallet to see fiat gain/loss figures.
             </p>
+          )}
+
+          {/* Quick actions */}
+          {hasWallets && (
+            <div className="mt-10">
+              <h2 className="text-sm font-semibold text-foreground mb-3">Quick actions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <QuickAction
+                  to={`/wallets/${summary.wallets[0].wallet_id}`}
+                  icon={Upload}
+                  label="Import data"
+                  description="Add transaction history to a wallet from a file export."
+                />
+                <QuickAction
+                  to={`/wallets/${summary.wallets[0].wallet_id}`}
+                  icon={ArrowUpDown}
+                  label="Run accounting"
+                  description="Compute cost basis and gain/loss for a wallet."
+                />
+                <QuickAction
+                  to="/reports"
+                  icon={FileDown}
+                  label="Generate reports"
+                  description="Tax, P&L, and balance sheet reports as CSV, PDF, or Excel."
+                />
+                <QuickAction
+                  to="/settings"
+                  icon={Wifi}
+                  label="Enable blockchain sync"
+                  description="Pull live transaction history from Esplora or Electrum."
+                />
+              </div>
+            </div>
           )}
         </>
       )}

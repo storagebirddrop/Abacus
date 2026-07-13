@@ -61,7 +61,7 @@ export default function SettingsPage() {
   if (!settings) return <div className="p-8 text-destructive">{error || 'Failed to load settings'}</div>
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="page-surface p-8 max-w-3xl">
       <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
       <p className="text-sm text-muted-foreground mb-8">Configure blockchain sync and other preferences.</p>
 
@@ -73,7 +73,7 @@ export default function SettingsPage() {
           <label className="flex items-center gap-3 mb-6 cursor-pointer">
             <input
               type="checkbox"
-              className="w-4 h-4 accent-slate-700"
+              className="w-4 h-4 accent-primary"
               checked={settings.sync_enabled}
               onChange={e => set('sync_enabled', e.target.checked)}
             />
@@ -107,7 +107,7 @@ export default function SettingsPage() {
                       type="radio"
                       name="backend"
                       value="esplora"
-                      className="accent-slate-700"
+                      className="accent-primary"
                       checked={settings.blockchain_backend === 'esplora'}
                       onChange={() => set('blockchain_backend', 'esplora')}
                     />
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                       type="radio"
                       name="backend"
                       value="electrum"
-                      className="accent-slate-700"
+                      className="accent-primary"
                       checked={settings.blockchain_backend === 'electrum'}
                       onChange={() => set('blockchain_backend', 'electrum')}
                     />
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 accent-slate-700"
+                      className="w-4 h-4 accent-primary"
                       checked={settings.electrum_tls}
                       onChange={e => set('electrum_tls', e.target.checked)}
                     />

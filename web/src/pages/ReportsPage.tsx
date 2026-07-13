@@ -92,7 +92,7 @@ export default function ReportsPage() {
   const base = walletID ? `/api/v1/wallets/${walletID}/reports` : null
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="page-surface p-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Reports</h1>
         <p className="text-sm text-muted-foreground mt-1">
