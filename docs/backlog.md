@@ -13,21 +13,32 @@ The remaining open items are listed below (last verified against the code on 202
 
 # Open Items
 
-## Medium / nice-to-have
-- [ ] **`AbortController` on data fetches** — rapid wallet/tab navigation can let a
-  stale response overwrite current state. Low impact for single-user, but real.
-  *Verified still open — no `AbortController` usage anywhere in `web/src`.*
-- [ ] **Uncleared `setTimeout`s** — Toast + SettingsPage "Saved" timers aren't
-  cleared on unmount (harmless at app root, but tidy with cleanup).
-- [ ] **Timezone not indicated on dates** — `block_time` etc. render via
-  `toLocaleDateString()` with no timezone label.
-- [ ] **No client-side descriptor validation** — invalid descriptors are only
-  caught server-side.
-- [ ] **Test coverage gaps** — `internal/sync/service.go` (the sync loop, context
-  handling, job-status transitions) still has no test file (only
-  `internal/sync/derive_test.go` and the 4 handler-level 404 tests in
-  `internal/api/sync_test.go` exist); most repos lack wallet-not-found negative
-  tests; ~10 page components untested (`WalletPage`, the tabs, `ExportBar`).
+## Medium / nice-to-have — ✅ all five closed (2026-07-13)
+- [x] **`AbortController` on data fetches** — `apiFetch` already forwarded
+  `RequestInit` (including `signal`), so `listWallets`/`getWallet`/
+  `listTransactions` now accept an optional `AbortSignal`. Wired into the two
+  effects most exposed to rapid navigation: `WalletPage`'s wallet load
+  (keyed on route `id`) and `TransactionsTab`'s list load (keyed on
+  walletID/page/filters) — each aborts its in-flight request on
+  dep-change/unmount and ignores `AbortError` in the catch handler.
+- [x] **Uncleared `setTimeout`s** — `Toast.tsx` now tracks pending dismiss
+  timers in a ref and clears them on provider unmount; `SettingsPage.tsx`'s
+  two "Saved" timers are ref-tracked and cleared on unmount / re-trigger.
+- [x] **Timezone not indicated on dates** — added a shared `formatDate()` in
+  `lib/utils.ts` (`Intl.DateTimeFormat` with `timeZoneName: 'short'`) and
+  applied it to the two highest-traffic date displays:
+  `TransactionsTab`'s date column and `PricesPage`'s snapshot date column.
+- [x] **No client-side descriptor validation** — `AddWalletDialog` now runs a
+  loose sanity regex (`DESCRIPTOR_RE`) against a manually-entered descriptor
+  before submit — catches obvious typos early; the server remains the source
+  of truth for real validation.
+- [x] **Test coverage gaps (partial)** — added `internal/sync/service_test.go`
+  covering `StartSync` (wallet-not-found, no-descriptor, backend-factory
+  error) and `runSync` (backend error fails the job, `networkToParams`
+  covers all networks); added wallet-not-found negative tests for
+  `wallet_repo.go` and `ledger_repo.go`. Most other repos and ~10 frontend
+  page components remain untested — this was a partial pass, not a full
+  sweep; left as a smaller follow-up if further coverage is wanted.
 
 ## Carried over
 - [ ] **Tax constants by-year audit** — NL Box 3 methodology, UK annual exempt

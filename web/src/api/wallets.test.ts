@@ -21,12 +21,12 @@ afterEach(() => mock.mockClear())
 describe('wallets API contract', () => {
   it('listWallets → GET /wallets', () => {
     listWallets()
-    expect(mock).toHaveBeenCalledWith('/wallets')
+    expect(mock).toHaveBeenCalledWith('/wallets', { signal: undefined })
   })
 
   it('getWallet → GET /wallets/{id}', () => {
     getWallet('w1')
-    expect(mock).toHaveBeenCalledWith('/wallets/w1')
+    expect(mock).toHaveBeenCalledWith('/wallets/w1', { signal: undefined })
   })
 
   it('createWallet → POST /wallets with JSON body', () => {
@@ -44,13 +44,14 @@ describe('wallets API contract', () => {
 
   it('listTransactions encodes pagination params with defaults', () => {
     listTransactions('w1')
-    expect(mock).toHaveBeenCalledWith('/wallets/w1/transactions?page=1&limit=50')
+    expect(mock).toHaveBeenCalledWith('/wallets/w1/transactions?page=1&limit=50', { signal: undefined })
   })
 
   it('listTransactions encodes search, status, sort and direction', () => {
     listTransactions('w1', { page: 2, limit: 25, search: 'abc', status: 'pending', sort: 'fee', dir: 'asc' })
     expect(mock).toHaveBeenCalledWith(
       '/wallets/w1/transactions?page=2&limit=25&search=abc&status=pending&sort=fee&dir=asc',
+      { signal: undefined },
     )
   })
 

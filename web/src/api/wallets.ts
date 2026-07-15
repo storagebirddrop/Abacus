@@ -34,9 +34,10 @@ export interface ImportJob {
   finished_at: string
 }
 
-export const listWallets = () => apiFetch<Wallet[]>('/wallets')
+export const listWallets = (signal?: AbortSignal) => apiFetch<Wallet[]>('/wallets', { signal })
 
-export const getWallet = (id: string) => apiFetch<Wallet>(`/wallets/${id}`)
+export const getWallet = (id: string, signal?: AbortSignal) =>
+  apiFetch<Wallet>(`/wallets/${id}`, { signal })
 
 export const createWallet = (data: { name: string; descriptor: string; source?: string }) =>
   apiFetch<Wallet>('/wallets', {
@@ -63,7 +64,7 @@ export interface TxPage {
   limit: number
 }
 
-export const listTransactions = (walletID: string, q: TxQuery = {}) => {
+export const listTransactions = (walletID: string, q: TxQuery = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams()
   params.set('page', String(q.page ?? 1))
   params.set('limit', String(q.limit ?? 50))
@@ -71,7 +72,7 @@ export const listTransactions = (walletID: string, q: TxQuery = {}) => {
   if (q.status) params.set('status', q.status)
   if (q.sort) params.set('sort', q.sort)
   if (q.dir) params.set('dir', q.dir)
-  return apiFetch<TxPage>(`/wallets/${walletID}/transactions?${params.toString()}`)
+  return apiFetch<TxPage>(`/wallets/${walletID}/transactions?${params.toString()}`, { signal })
 }
 
 export const importWallet = (walletID: string, file: File) => {

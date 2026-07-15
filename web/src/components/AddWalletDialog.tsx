@@ -14,6 +14,15 @@ import { cn } from '../lib/utils'
 const EXCHANGES = ['Bitvavo', 'Bitonic', 'Kraken', 'Coinbase', 'Strike'] as const
 type Exchange = (typeof EXCHANGES)[number]
 
+// Loose sanity check, not a full parser: requires a known script function wrapping
+// balanced parens and at least one xpub/tpub-style extended key. The server is the
+// source of truth for real validation — this only catches obvious typos early.
+const DESCRIPTOR_RE = /^(pkh|wpkh|sh|wsh|tr|combo)\(.*[xyzYZtuv]pub[A-Za-z0-9]+.*\)(#[a-z0-9]{8})?$/
+
+function isValidDescriptor(desc: string): boolean {
+  return DESCRIPTOR_RE.test(desc)
+}
+
 export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -70,6 +79,10 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
     const walletName = name.trim() || (walletMode === 'exchange' ? exchange : '')
     if (!walletName) {
       setError('Wallet name is required.')
+      return
+    }
+    if (walletMode === 'onchain' && descriptor.trim() && !isValidDescriptor(descriptor.trim())) {
+      setError('Descriptor doesn’t look valid. Expected a form like wpkh([fingerprint/path]xpub…) or wsh(sortedmulti(…)).')
       return
     }
     setLoading(true)
