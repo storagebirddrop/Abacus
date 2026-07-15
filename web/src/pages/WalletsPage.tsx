@@ -81,7 +81,10 @@ export default function WalletsPage() {
             <table className="w-full text-sm">
               <thead className="bg-secondary/60 border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  <th
+                    className="text-left px-4 py-3 font-medium text-muted-foreground"
+                    aria-sort={sortKey === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
                     <button className="hover:text-foreground" onClick={() => toggleSort('name')}>
                       Name{sortKey === 'name' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                     </button>

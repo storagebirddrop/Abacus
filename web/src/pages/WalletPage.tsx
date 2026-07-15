@@ -44,10 +44,14 @@ export default function WalletPage() {
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-border mb-6">
+      <div className="flex gap-1 border-b border-border mb-6" role="tablist" aria-label="Wallet sections">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
+            id={`tab-${key}`}
+            role="tab"
+            aria-selected={tab === key}
+            aria-controls={`tabpanel-${key}`}
             onClick={() => setTab(key)}
             className={cn(
               'px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors',
@@ -61,9 +65,21 @@ export default function WalletPage() {
         ))}
       </div>
 
-      {tab === 'transactions' && <TransactionsTab walletID={id} />}
-      {tab === 'accounting' && <AccountingTab walletID={id} />}
-      {tab === 'advanced' && <AdvancedTab walletID={id} walletName={wallet?.name ?? ''} />}
+      {tab === 'transactions' && (
+        <div id="tabpanel-transactions" role="tabpanel" aria-labelledby="tab-transactions">
+          <TransactionsTab walletID={id} />
+        </div>
+      )}
+      {tab === 'accounting' && (
+        <div id="tabpanel-accounting" role="tabpanel" aria-labelledby="tab-accounting">
+          <AccountingTab walletID={id} />
+        </div>
+      )}
+      {tab === 'advanced' && (
+        <div id="tabpanel-advanced" role="tabpanel" aria-labelledby="tab-advanced">
+          <AdvancedTab walletID={id} walletName={wallet?.name ?? ''} />
+        </div>
+      )}
     </div>
   )
 }

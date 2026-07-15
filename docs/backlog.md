@@ -39,13 +39,22 @@ The remaining open items are listed below (last verified against the code on 202
   (Portfolio dashboard with a value/BTC history chart shipped in the Fourth
   Batch — see below.)
 - [ ] **Cross-platform release** — Docker image publish, Windows/macOS, arm64.
-- [ ] **Accessibility audit** — aria attributes and keyboard navigation were
-  never actually verified. The "Dark mode + accessibility pass" line in the
-  Second Batch below turned out to only cover responsive layout: dark mode
-  itself was broken (a background/foreground-only swap, not real theming)
-  until the Fourth Batch's redesign, and accessibility specifically was never
-  separately audited at all — correcting that overclaim here rather than
-  leaving it standing.
+- [x] **Accessibility audit** — aria attributes and keyboard navigation were
+  never actually verified (the "Dark mode + accessibility pass" line in the
+  Second Batch below turned out to only cover responsive layout; accessibility
+  specifically was never separately audited). Done: drag-and-drop import zones
+  (`ImportTab`, `AddWalletDialog`) are now keyboard-operable (`role="button"`,
+  `tabIndex`, Enter/Space); the mobile nav drawer (`Layout.tsx`) is a real
+  modal dialog (focus moves in on open, `inert` on `<main>` while open,
+  Escape closes, focus returns to the toggle); the wallet detail tab strip
+  (`WalletPage.tsx`) uses proper ARIA tab semantics; sortable table headers
+  carry `aria-sort`; segmented/toggle button groups (`PortfolioChart`,
+  `AddWalletDialog` wallet-type toggle) use `aria-pressed` + `role="group"`;
+  the transaction category cell has accessible labels. Added `vitest-axe` for
+  automated regression coverage (`Layout.test.tsx`, extended
+  `WalletPage.test.tsx`, new `ImportTab.a11y.test.tsx` /
+  `AddWalletDialog.a11y.test.tsx`) so this class of regression is now caught
+  by `npm test`, not just manual review.
 - [ ] **Bitcoin Core sync backend** — `blockchain_backend: bitcoincore` is listed
   in the architecture but was never implemented. Add `internal/sync/bitcoincore/`
   with a JSON-RPC client (`getaddresstxids` / `scantxoutset`) and wire it into
