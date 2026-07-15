@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/utils'
 
 type Variant = 'success' | 'error' | 'info'
@@ -26,6 +26,15 @@ let nextID = 0
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  useEffect(() => {
+    const active = timers.current
+    return () => {
+      active.forEach((t) => clearTimeout(t))
+      active.clear()
+    }
+  }, [])
 
   const remove = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -35,7 +44,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, variant: Variant = 'info') => {
       const id = nextID++
       setToasts((prev) => [...prev, { id, message, variant }])
-      setTimeout(() => remove(id), 4000)
+      const t = setTimeout(() => {
+        timers.current.delete(t)
+        remove(id)
+      }, 4000)
+      timers.current.add(t)
     },
     [remove],
   )

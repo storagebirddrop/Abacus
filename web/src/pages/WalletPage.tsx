@@ -16,12 +16,19 @@ export default function WalletPage() {
 
   useEffect(() => {
     if (!id) return
+    const controller = new AbortController()
     setLoadError('')
-    getWallet(id)
-      .then(setWallet)
-      .catch((err: unknown) =>
-        setLoadError(err instanceof Error ? err.message : 'Failed to load wallet'),
-      )
+    getWallet(id, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setWallet(data)
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (!controller.signal.aborted) {
+          setLoadError(err instanceof Error ? err.message : 'Failed to load wallet')
+        }
+      })
+    return () => controller.abort()
   }, [id])
 
   if (!id) return null

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listTransactions, patchTransaction, type Transaction } from '../../api/wallets'
 import { Button } from '../../components/ui/button'
-import { cn } from '../../lib/utils'
+import { cn, formatDate } from '../../lib/utils'
 import { ExportBar } from './ExportBar'
 import { ImportModal } from './ImportModal'
 
@@ -115,15 +115,26 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
   useEffect(() => { setPage(1) }, [debouncedSearch, status, sort, dir])
 
   useEffect(() => {
+    const controller = new AbortController()
     setLoading(true)
     setError('')
-    listTransactions(walletID, { page, limit, search: debouncedSearch, status, sort, dir })
+    listTransactions(walletID, { page, limit, search: debouncedSearch, status, sort, dir }, controller.signal)
       .then((data) => {
-        setTxs(data.data ?? [])
-        setTotal(data.total ?? 0)
+        if (!controller.signal.aborted) {
+          setTxs(data.data ?? [])
+          setTotal(data.total ?? 0)
+        }
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed'))
-      .finally(() => setLoading(false))
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Failed')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
   }, [walletID, page, debouncedSearch, status, sort, dir])
 
   function toggleSort(key: SortKey) {
@@ -214,7 +225,7 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
                 {txs.map((tx) => (
                   <tr key={tx.id} className="hover:bg-secondary">
                     <td className="px-4 py-3 text-muted-foreground">
-                      {tx.block_time ? new Date(tx.block_time).toLocaleDateString() : 'Unconfirmed'}
+                      {tx.block_time ? formatDate(tx.block_time) : 'Unconfirmed'}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-foreground">
                       {tx.txid.slice(0, 16)}…{tx.txid.slice(-8)}

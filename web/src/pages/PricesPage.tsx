@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPrice, fetchPricesFromCoinGecko, listPrices, type PriceSnapshot } from '../api/prices'
 import { listWallets, type Wallet } from '../api/wallets'
+import { formatDate } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import {
   Dialog,
@@ -248,7 +249,7 @@ export default function PricesPage() {
               {sorted.map((p) => (
                 <tr key={p.id} className="hover:bg-secondary">
                   <td className="px-4 py-3 text-foreground">
-                    {new Date(p.timestamp).toLocaleDateString()}
+                    {formatDate(p.timestamp)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">
                     {(p.price_fiat / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}

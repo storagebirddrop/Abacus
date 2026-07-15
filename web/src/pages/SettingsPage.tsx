@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getSettings, updateSettings, type AppSettings } from '../api/settings'
 import { getToken, setToken } from '../api/token'
 import { Button } from '../components/ui/button'
@@ -11,12 +11,22 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [apiToken, setApiToken] = useState(getToken())
   const [tokenSaved, setTokenSaved] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const tokenSavedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(savedTimer.current)
+      clearTimeout(tokenSavedTimer.current)
+    }
+  }, [])
 
   function saveToken(e: React.FormEvent) {
     e.preventDefault()
     setToken(apiToken.trim())
     setTokenSaved(true)
-    setTimeout(() => setTokenSaved(false), 3000)
+    clearTimeout(tokenSavedTimer.current)
+    tokenSavedTimer.current = setTimeout(() => setTokenSaved(false), 3000)
   }
 
   useEffect(() => {
@@ -45,7 +55,8 @@ export default function SettingsPage() {
       const updated = await updateSettings(settings)
       setSettings(updated)
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {

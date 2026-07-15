@@ -96,7 +96,7 @@ describe('WalletPage', () => {
     await waitFor(() =>
       expect(m.listTransactions).toHaveBeenCalledWith('w1', {
         page: 1, limit: 50, search: '', status: '', sort: 'date', dir: 'desc',
-      }),
+      }, expect.any(AbortSignal)),
     )
   })
 
@@ -114,7 +114,7 @@ describe('WalletPage', () => {
     await waitFor(() =>
       expect(m.listTransactions).toHaveBeenCalledWith('w1', {
         page: 2, limit: 50, search: '', status: '', sort: 'date', dir: 'desc',
-      }),
+      }, expect.any(AbortSignal)),
     )
   })
 
