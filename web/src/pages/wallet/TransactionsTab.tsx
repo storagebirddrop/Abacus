@@ -120,12 +120,16 @@ export function TransactionsTab({ walletID }: { walletID: string }) {
     setError('')
     listTransactions(walletID, { page, limit, search: debouncedSearch, status, sort, dir }, controller.signal)
       .then((data) => {
-        setTxs(data.data ?? [])
-        setTotal(data.total ?? 0)
+        if (!controller.signal.aborted) {
+          setTxs(data.data ?? [])
+          setTotal(data.total ?? 0)
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
-        setError(err instanceof Error ? err.message : 'Failed')
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Failed')
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)

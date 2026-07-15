@@ -14,5 +14,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 /** Formats a date/timestamp with an explicit local timezone abbreviation (e.g. "Jul 13, 2026 CEST"). */
 export function formatDate(value: string | number | Date): string {
-  return dateFormatter.format(new Date(value))
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : dateFormatter.format(date)
 }

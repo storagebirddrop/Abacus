@@ -81,7 +81,8 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
       setError('Wallet name is required.')
       return
     }
-    if (walletMode === 'onchain' && descriptor.trim() && !isValidDescriptor(descriptor.trim())) {
+    const trimmedDesc = descriptor.trim()
+    if (walletMode === 'onchain' && trimmedDesc && !isValidDescriptor(trimmedDesc)) {
       setError('Descriptor doesn’t look valid. Expected a form like wpkh([fingerprint/path]xpub…) or wsh(sortedmulti(…)).')
       return
     }
@@ -89,7 +90,7 @@ export function AddWalletDialog({ onCreated }: { onCreated: () => void }) {
     setError('')
     try {
       const source = walletMode === 'exchange' ? 'exchange' : 'manual'
-      const desc = walletMode === 'exchange' ? `exchange:${exchange.toLowerCase()}` : descriptor
+      const desc = walletMode === 'exchange' ? `exchange:${exchange.toLowerCase()}` : trimmedDesc
       const wallet = await createWallet({ name: walletName, descriptor: desc, source })
       if (file) {
         await importWallet(wallet.id, file)

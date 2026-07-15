@@ -19,10 +19,14 @@ export default function WalletPage() {
     const controller = new AbortController()
     setLoadError('')
     getWallet(id, controller.signal)
-      .then(setWallet)
+      .then((data) => {
+        if (!controller.signal.aborted) setWallet(data)
+      })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
-        setLoadError(err instanceof Error ? err.message : 'Failed to load wallet')
+        if (!controller.signal.aborted) {
+          setLoadError(err instanceof Error ? err.message : 'Failed to load wallet')
+        }
       })
     return () => controller.abort()
   }, [id])

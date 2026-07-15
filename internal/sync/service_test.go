@@ -150,12 +150,13 @@ func TestRunSync_JobStatusTransitionsToDone(t *testing.T) {
 	backend := &stubBackend{name: "esplora", height: 800000}
 	svc := newTestService(t, &stubWalletRepo{wallet: wallet}, newStubSyncJobRepo(), backend)
 
-	jobID, err := svc.StartSync(context.Background(), "w1")
-	if err != nil {
-		t.Fatalf("StartSync: %v", err)
+	job := &domain.SyncJob{ID: "job1", WalletID: "w1", Backend: "esplora", Status: "pending"}
+	if err := svc.runSync(context.Background(), wallet, job, backend); err != nil {
+		t.Fatalf("runSync: %v", err)
 	}
-	if jobID == "" {
-		t.Fatal("expected a non-empty job ID")
+
+	if job.Status != "done" {
+		t.Errorf("expected job status 'done', got %q", job.Status)
 	}
 }
 
