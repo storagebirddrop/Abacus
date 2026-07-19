@@ -93,9 +93,10 @@ embed.go                    go:embed — bundles web/dist + migrations into bina
 packaging/appimage/         AppImage assets (AppRun, .desktop, icon)
 Makefile                    frontend / build / appimage / clean targets
 .github/workflows/
-  ci.yml                    CI: Go build/vet/test (+race, coverage floor) + frontend lint/test/build + Docker
+  ci.yml                    CI: Go build/vet/test (+race, coverage floor) + frontend lint/test/build + Docker + CLAUDE.md drift check
   auto-release.yml          auto-tags releases from conventional commits after green CI on main
   release.yml               Release: builds AppImage on v* tag push
+scripts/check_claude_md.sh  CI guard: fails when this file drifts from the repo (paths, packages, API routes)
 docs/architecture.md        layer diagram and principles
 docs/domain-model.md        all entities described
 docs/deployment.md          deployment guide (Docker, binary, AppImage, reverse proxy)
@@ -153,7 +154,10 @@ npm run build               tsc + vite build into web/dist
 
 CI (`.github/workflows/ci.yml`) must pass before merge: Go build/vet/test with the
 race detector and a **test-coverage floor** (currently 25% — add tests alongside
-new code), frontend `npm audit`/lint/test/build, and a Docker build.
+new code), frontend `npm audit`/lint/test/build, a Docker build, and the
+**CLAUDE.md drift check** (`scripts/check_claude_md.sh`) — if you add, remove, or
+move packages, workflows, docs, or API routes, update this file in the same PR
+or CI fails. Run the script locally to verify.
 
 ## Git Workflow
 
