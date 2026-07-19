@@ -1,4 +1,6 @@
-# Abacus — Codebase Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
 
@@ -8,9 +10,9 @@ Motto: *Wallets manage bitcoin. Abacus manages the books.*
 ## Tech Stack
 
 - **Backend**: Go 1.26, chi router, SQLite
-- **Frontend**: React + Vite + TypeScript
+- **Frontend**: React 19 + Vite + TypeScript, Tailwind CSS 4, Radix UI; oxlint for linting, vitest for tests
 - **Database**: SQLite via `golang-migrate`
-- **Deploy**: Docker Compose
+- **Deploy**: Docker Compose, or single self-contained binary / AppImage
 
 ## Directory Map
 
@@ -33,7 +35,6 @@ internal/importer/          plugin importers
   kraken/                   Kraken Ledgers CSV importer (refid-pairing)
   coinbase/                 Coinbase Transaction History CSV importer
   strike/                   Strike CSV importer (Lightning + trades)
-internal/normalizer/        wallet-agnostic normalization
 internal/ledger/            ledger engine (Build: tx → entries + UTXOs)
 internal/prices/            external price-feed integrations
   coingecko.go              FetchRange — single HTTP call for a date range
@@ -48,6 +49,7 @@ internal/accounting/        cost basis calculations — all pure functions
   exchange.go               RunExchangeFIFO — FIFO lot-matching for exchange trades
   accounting_test.go        unit tests (no DB)
 internal/repository/        SQLite data access
+  db.go                     Open + Migrate (golang-migrate over embedded FS)
   wallet_repo.go
   transaction_repo.go
   ledger_repo.go
@@ -58,9 +60,11 @@ internal/repository/        SQLite data access
   journal_repo.go
   label_repo.go
   sync_repo.go
+  settings_repo.go
   exchange_trade_repo.go    Create / ListByWallet / CountByWallet (INSERT OR IGNORE dedup)
 internal/api/               HTTP handlers and router
   router.go                 all routes registered here
+  middleware.go             rate limiting + optional bearer auth
   wallets.go                wallet + import + transaction + label handlers
   accounting.go             accounting + price handlers
   ledger.go                 ledger entry + UTXO handlers
@@ -89,12 +93,16 @@ embed.go                    go:embed — bundles web/dist + migrations into bina
 packaging/appimage/         AppImage assets (AppRun, .desktop, icon)
 Makefile                    frontend / build / appimage / clean targets
 .github/workflows/
-  ci.yml                    CI: Go build/vet/test + frontend lint/build + Docker
+  ci.yml                    CI: Go build/vet/test (+race, coverage floor) + frontend lint/test/build + Docker
+  auto-release.yml          auto-tags releases from conventional commits after green CI on main
   release.yml               Release: builds AppImage on v* tag push
 docs/architecture.md        layer diagram and principles
 docs/domain-model.md        all entities described
+docs/deployment.md          deployment guide (Docker, binary, AppImage, reverse proxy)
+docs/backlog.md             project backlog / audit status
 docs/api/swagger.yaml       OpenAPI 3.1 spec
-web/                        React + Vite frontend
+web/                        React + Vite frontend (src/pages, src/components, src/api, src/hooks, src/lib, src/test)
+CONTRIBUTING.md             contributor guide (setup, conventions CI enforces)
 ```
 
 ## Key Invariants
@@ -123,8 +131,9 @@ web/                        React + Vite frontend
 
 ```bash
 go build ./...              build (requires web/dist — run `make frontend` first)
-go vet ./...                lint
-go test ./...               test
+go vet ./...                lint (the Go lint gate; golangci-lint/gosec not wired into CI yet)
+go test ./...               test (add -race for sync/concurrency code)
+go test ./internal/accounting/ -run TestRunFIFO   run a single test
 docker compose up --build   full stack
 make frontend               build React frontend into web/dist
 make build                  frontend + go binary in dist/abacus
@@ -132,12 +141,32 @@ make appimage               full AppImage in dist/ (requires appimagetool)
 make clean                  remove dist/ and Abacus.AppDir
 ```
 
+Frontend (run from `web/`):
+
+```bash
+npm ci                      install dependencies
+npm run dev                 Vite dev server
+npm run lint                oxlint
+npm test                    vitest (single run; `npm run test:watch` to watch)
+npm run build               tsc + vite build into web/dist
+```
+
+CI (`.github/workflows/ci.yml`) must pass before merge: Go build/vet/test with the
+race detector and a **test-coverage floor** (currently 25% — add tests alongside
+new code), frontend `npm audit`/lint/test/build, and a Docker build.
+
 ## Git Workflow
 
 - **Never commit directly to `main`.** Always create a feature branch off the
   latest `main`, push it, and open a PR — even for docs-only changes.
 - Wait for CI (`.github/workflows/ci.yml`) to go green, then **squash-merge**
   the PR (commit title: the PR title with ` (#N)` appended).
+- **Conventional-commit prefixes matter**: after a green CI run on `main`,
+  `auto-release.yml` reads the squash-merge commit title — `feat:` triggers a
+  minor release tag, `fix:` a patch release, and anything else (`docs:`, `ci:`,
+  `chore:`, `refactor:`, `test:`, `style:`, `perf:`, `build:`) is skipped.
+  Title PRs accordingly: a user-facing change should be `feat:`/`fix:` so it
+  ships; an internal change should not be, so it doesn't cut a spurious release.
 - After merging, sync local `main` and drop the branch:
   ```bash
   git checkout main
@@ -146,10 +175,12 @@ make clean                  remove dist/ and Abacus.AppDir
   git branch -D <feature-branch>
   ```
 - **Tag pushes and remote branch deletion return 403 from CI/automated
-  tooling** (the CI token lacks those permissions). Cutting a release tag
-  (`git tag vX.Y.Z && git push origin vX.Y.Z`) and pruning merged remote
-  branches (`git push origin --delete <branch>`) must be done from a local
-  machine with a personal git credential — not from an automated session.
+  tooling** (the CI token lacks those permissions). Releases are normally cut
+  automatically by `auto-release.yml` (which uses a `RELEASE_PAT` secret);
+  manually cutting a tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) or
+  pruning merged remote branches (`git push origin --delete <branch>`) must be
+  done from a local machine with a personal git credential — not from an
+  automated session.
 
 ## Binary embedding
 
