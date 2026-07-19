@@ -1,13 +1,17 @@
 // Package bitcoincore implements the BlockchainBackend interface against a
 // self-hosted Bitcoin Core node's JSON-RPC interface.
 //
-// It uses scantxoutset to discover unspent outputs for an address (no
+// It uses scantxoutset to discover an address's current unspent outputs (no
 // -txindex or wallet import required — a synced node with a recent UTXO set
 // snapshot is enough) and getrawtransaction/getblockheader to fetch full
-// transaction and input details. Reconstructing full history for an address
-// that has since had all its outputs spent elsewhere in the wallet requires
-// the node to be running with -txindex=1, since getrawtransaction otherwise
-// only resolves transactions already indexed by wallet or mempool.
+// transaction and input details, resolving each found transaction's block
+// hash via getblockhash so getrawtransaction works without -txindex.
+//
+// This only discovers currently-unspent outputs: an address whose outputs
+// have all since been spent elsewhere returns no history at all, since
+// scantxoutset is a UTXO-set scan, not a full transaction index. A node
+// running with -txindex=1 does not change this — it only helps resolve the
+// previous transaction for an already-found input's spend details.
 package bitcoincore
 
 import (
@@ -17,6 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/storagebirddrop/abacus/internal/sync"
 )
@@ -34,7 +41,7 @@ func New(rpcURL, user, pass string) *Backend {
 		rpcURL:     rpcURL,
 		user:       user,
 		pass:       pass,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: 5 * time.Minute}, // scantxoutset can run long
 	}
 }
 
@@ -62,7 +69,7 @@ func (b *Backend) GetTransactions(ctx context.Context, address string) ([]sync.T
 			continue
 		}
 		seen[u.Txid] = true
-		rec, err := b.fetchTxRecord(ctx, u.Txid)
+		rec, err := b.fetchTxRecord(ctx, u.Txid, u.Height)
 		if err != nil {
 			return nil, fmt.Errorf("fetch tx %s: %w", u.Txid, err)
 		}
@@ -71,9 +78,25 @@ func (b *Backend) GetTransactions(ctx context.Context, address string) ([]sync.T
 	return records, nil
 }
 
-func (b *Backend) fetchTxRecord(ctx context.Context, txid string) (sync.TxRecord, error) {
+// fetchTxRecord fetches full transaction detail for txid, known to have been
+// confirmed at the given height (0 if unconfirmed, per scantxoutset). Passing
+// the resolved block hash to getrawtransaction lets it find the transaction
+// on a node without -txindex — without a block hash, getrawtransaction can
+// only resolve mempool/wallet-known transactions.
+func (b *Backend) fetchTxRecord(ctx context.Context, txid string, height int64) (sync.TxRecord, error) {
+	var blockHash string
+	if height > 0 {
+		if err := b.call(ctx, "getblockhash", []any{height}, &blockHash); err != nil {
+			return sync.TxRecord{}, fmt.Errorf("getblockhash: %w", err)
+		}
+	}
+
+	params := []any{txid, true}
+	if blockHash != "" {
+		params = append(params, blockHash)
+	}
 	var raw rawTransaction
-	if err := b.call(ctx, "getrawtransaction", []any{txid, true}, &raw); err != nil {
+	if err := b.call(ctx, "getrawtransaction", params, &raw); err != nil {
 		return sync.TxRecord{}, err
 	}
 
@@ -95,13 +118,19 @@ func (b *Backend) fetchTxRecord(ctx context.Context, txid string) (sync.TxRecord
 		if vin.Coinbase != "" {
 			continue
 		}
+		// Best-effort: the previous tx's block hash isn't known here, so this
+		// lookup only succeeds if the node can resolve it without one
+		// (mempool/wallet-known, or a -txindex node).
 		var prev rawTransaction
 		if err := b.call(ctx, "getrawtransaction", []any{vin.Txid, true}, &prev); err != nil || vin.Vout >= len(prev.Vout) {
 			haveAllInputs = false
 			continue
 		}
 		out := prev.Vout[vin.Vout]
-		sats := btcToSats(out.Value)
+		sats, err := parseSats(out.Value)
+		if err != nil {
+			return sync.TxRecord{}, fmt.Errorf("parse input value: %w", err)
+		}
 		totalIn += sats
 		rec.Inputs = append(rec.Inputs, sync.TxInput{
 			PrevTxid: vin.Txid,
@@ -111,7 +140,10 @@ func (b *Backend) fetchTxRecord(ctx context.Context, txid string) (sync.TxRecord
 		})
 	}
 	for i, vout := range raw.Vout {
-		sats := btcToSats(vout.Value)
+		sats, err := parseSats(vout.Value)
+		if err != nil {
+			return sync.TxRecord{}, fmt.Errorf("parse output value: %w", err)
+		}
 		totalOut += sats
 		rec.Outputs = append(rec.Outputs, sync.TxOutput{
 			Vout:    i,
@@ -125,8 +157,42 @@ func (b *Backend) fetchTxRecord(ctx context.Context, txid string) (sync.TxRecord
 	return rec, nil
 }
 
-func btcToSats(btc float64) int64 {
-	return int64(btc*1e8 + 0.5)
+// parseSats converts a Bitcoin Core JSON-RPC decimal BTC amount (e.g.
+// "0.00001234") to integer satoshis via exact string arithmetic — no
+// float64 round-trip, since json.Number preserves the literal decimal text
+// Bitcoin Core emits (always exactly 8 fraction digits).
+func parseSats(n json.Number) (int64, error) {
+	s := n.String()
+	if s == "" {
+		return 0, nil
+	}
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	whole, frac, _ := strings.Cut(s, ".")
+	if len(frac) > 8 {
+		frac = frac[:8]
+	}
+	for len(frac) < 8 {
+		frac += "0"
+	}
+	if whole == "" {
+		whole = "0"
+	}
+	wholeSats, err := strconv.ParseInt(whole, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid amount %q: %w", n, err)
+	}
+	fracSats, err := strconv.ParseInt(frac, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid amount %q: %w", n, err)
+	}
+	sats := wholeSats*1e8 + fracSats
+	if neg {
+		sats = -sats
+	}
+	return sats, nil
 }
 
 // ---------- JSON-RPC plumbing ----------
@@ -193,10 +259,10 @@ type scanTxOutSetResult struct {
 }
 
 type scanUnspent struct {
-	Txid   string  `json:"txid"`
-	Vout   int     `json:"vout"`
-	Amount float64 `json:"amount"`
-	Height int64   `json:"height"`
+	Txid   string      `json:"txid"`
+	Vout   int         `json:"vout"`
+	Amount json.Number `json:"amount"`
+	Height int64       `json:"height"`
 }
 
 type rawTransaction struct {
@@ -215,7 +281,7 @@ type rawVin struct {
 }
 
 type rawVout struct {
-	Value        float64         `json:"value"`
+	Value        json.Number     `json:"value"`
 	ScriptPubKey rawScriptPubKey `json:"scriptPubKey"`
 }
 

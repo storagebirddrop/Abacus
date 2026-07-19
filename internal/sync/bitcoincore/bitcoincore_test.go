@@ -9,8 +9,11 @@ import (
 )
 
 // newTestServer returns a stub JSON-RPC server that answers getblockcount,
-// scantxoutset, getrawtransaction, and getblockheader with fixed responses
-// shaped like real Bitcoin Core output for one address with one deposit tx.
+// scantxoutset, getblockhash, getrawtransaction, and getblockheader with
+// fixed responses shaped like real Bitcoin Core output for one address with
+// one deposit tx. It asserts getrawtransaction is called with the block
+// hash resolved from the scanned output's height, catching a regression
+// back to the txindex-only (no blockhash) call shape.
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +31,20 @@ func newTestServer(t *testing.T) *httptest.Server {
 					{"txid": "a", "vout": 0, "amount": 0.00001, "height": 800000},
 				},
 			}
+		case "getblockhash":
+			params, _ := req.Params.([]any)
+			if len(params) != 1 || params[0] != float64(800000) {
+				t.Fatalf("getblockhash: unexpected params %v", req.Params)
+			}
+			result = "hashA"
 		case "getrawtransaction":
+			params, _ := req.Params.([]any)
+			if len(params) < 1 || params[0] != "a" {
+				t.Fatalf("getrawtransaction: unexpected params %v", req.Params)
+			}
+			if len(params) == 3 && params[2] != "hashA" {
+				t.Fatalf("getrawtransaction: expected blockhash \"hashA\", got %v", params[2])
+			}
 			result = map[string]any{
 				"txid":          "a",
 				"confirmations": 5,

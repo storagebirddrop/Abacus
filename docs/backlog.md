@@ -68,15 +68,22 @@ The remaining open items are listed below (last verified against the code on 202
   by `npm test`, not just manual review.
 - [x] **Bitcoin Core sync backend** — `internal/sync/bitcoincore/bitcoincore.go`
   implements `BlockchainBackend` against a self-hosted node's JSON-RPC
-  interface: `scantxoutset` discovers UTXOs for an address (no `-txindex` or
-  wallet import required), `getrawtransaction`/`getblockheader` fill in full
-  input/output/fee/height detail. Wired into `main.go`'s `backendFactory` and
+  interface: `scantxoutset` discovers an address's *currently unspent*
+  outputs (no `-txindex` or wallet import required), `getblockhash` resolves
+  each found tx's block so `getrawtransaction` works without `-txindex`, and
+  `getblockheader` fills in height. Monetary amounts are parsed from Bitcoin
+  Core's exact decimal strings (`json.Number`) into sats without ever going
+  through `float64`. Wired into `main.go`'s `backendFactory` and
   `settings.go` (`bitcoincore_rpc_url`/`_rpc_user`/`_rpc_pass`, the last
   write-only — never returned by `GET /settings`); Settings page has a third
-  backend radio option. Full spend history for an address whose outputs were
-  later spent without ever appearing as an input to another *scanned* address
-  needs the node running with `-txindex=1` — documented in the package
-  comment and the Settings page helper text, not silently glossed over.
+  backend radio option.
+
+  **Known limitation, documented rather than glossed over**: this is
+  unspent-output history only, since `scantxoutset` is a UTXO-set scan, not
+  a full transaction index — an address whose outputs have all since been
+  spent elsewhere returns no history at all. `-txindex=1` does not change
+  this; it only helps resolve an *already-found* input's previous
+  transaction. See the package doc comment for the precise mechanics.
 
 ## Already done — checked off in an accuracy pass (2026-07-02)
 Verified against the code; these had landed but were left unchecked:
