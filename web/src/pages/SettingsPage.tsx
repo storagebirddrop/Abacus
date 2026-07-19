@@ -52,7 +52,11 @@ export default function SettingsPage() {
     setError('')
     setSaved(false)
     try {
-      const updated = await updateSettings(settings)
+      // Omit an empty RPC password so saving doesn't clear a previously-set
+      // one — the field is write-only and never comes back from GET.
+      const { bitcoincore_rpc_pass, ...rest } = settings
+      const payload = bitcoincore_rpc_pass ? settings : rest
+      const updated = await updateSettings(payload)
       setSettings(updated)
       setSaved(true)
       clearTimeout(savedTimer.current)
@@ -135,6 +139,17 @@ export default function SettingsPage() {
                     />
                     <span className="text-sm text-foreground">Electrum server <span className="text-muted-foreground">(public or self-hosted)</span></span>
                   </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="backend"
+                      value="bitcoincore"
+                      className="accent-primary"
+                      checked={settings.blockchain_backend === 'bitcoincore'}
+                      onChange={() => set('blockchain_backend', 'bitcoincore')}
+                    />
+                    <span className="text-sm text-foreground">Bitcoin Core <span className="text-muted-foreground">(self-hosted node, JSON-RPC)</span></span>
+                  </label>
                 </div>
               </div>
 
@@ -199,6 +214,48 @@ export default function SettingsPage() {
                     />
                     <span className="text-sm text-foreground">Use TLS</span>
                   </label>
+                </div>
+              )}
+
+              {/* Bitcoin Core fields */}
+              {settings.blockchain_backend === 'bitcoincore' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">RPC URL</label>
+                    <input
+                      type="url"
+                      className="w-full border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={settings.bitcoincore_rpc_url}
+                      onChange={e => set('bitcoincore_rpc_url', e.target.value)}
+                      placeholder="http://127.0.0.1:8332"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">RPC user</label>
+                    <input
+                      type="text"
+                      className="w-full border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={settings.bitcoincore_rpc_user}
+                      onChange={e => set('bitcoincore_rpc_user', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      RPC password <span className="font-normal">(leave blank to keep the current value)</span>
+                    </label>
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      className="w-full border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      value={settings.bitcoincore_rpc_pass ?? ''}
+                      onChange={e => set('bitcoincore_rpc_pass', e.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Requires a synced node reachable at this RPC endpoint. Discovers address
+                    history via <code>scantxoutset</code> — a node running with{' '}
+                    <code>-txindex=1</code> gives the most complete results.
+                  </p>
                 </div>
               )}
             </div>

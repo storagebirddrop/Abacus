@@ -66,10 +66,17 @@ The remaining open items are listed below (last verified against the code on 202
   `WalletPage.test.tsx`, new `ImportTab.a11y.test.tsx` /
   `AddWalletDialog.a11y.test.tsx`) so this class of regression is now caught
   by `npm test`, not just manual review.
-- [ ] **Bitcoin Core sync backend** — `blockchain_backend: bitcoincore` is listed
-  in the architecture but was never implemented. Add `internal/sync/bitcoincore/`
-  with a JSON-RPC client (`getaddresstxids` / `scantxoutset`) and wire it into
-  `main.go` and `settings.go`.
+- [x] **Bitcoin Core sync backend** — `internal/sync/bitcoincore/bitcoincore.go`
+  implements `BlockchainBackend` against a self-hosted node's JSON-RPC
+  interface: `scantxoutset` discovers UTXOs for an address (no `-txindex` or
+  wallet import required), `getrawtransaction`/`getblockheader` fill in full
+  input/output/fee/height detail. Wired into `main.go`'s `backendFactory` and
+  `settings.go` (`bitcoincore_rpc_url`/`_rpc_user`/`_rpc_pass`, the last
+  write-only — never returned by `GET /settings`); Settings page has a third
+  backend radio option. Full spend history for an address whose outputs were
+  later spent without ever appearing as an input to another *scanned* address
+  needs the node running with `-txindex=1` — documented in the package
+  comment and the Settings page helper text, not silently glossed over.
 
 ## Already done — checked off in an accuracy pass (2026-07-02)
 Verified against the code; these had landed but were left unchecked:

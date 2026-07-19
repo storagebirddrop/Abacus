@@ -16,8 +16,8 @@ import (
 	"github.com/storagebirddrop/abacus/internal/api"
 	"github.com/storagebirddrop/abacus/internal/config"
 	"github.com/storagebirddrop/abacus/internal/importer"
-	"github.com/storagebirddrop/abacus/internal/importer/bitvavo"
 	"github.com/storagebirddrop/abacus/internal/importer/bitonic"
+	"github.com/storagebirddrop/abacus/internal/importer/bitvavo"
 	"github.com/storagebirddrop/abacus/internal/importer/coinbase"
 	"github.com/storagebirddrop/abacus/internal/importer/coldcard"
 	"github.com/storagebirddrop/abacus/internal/importer/descriptor"
@@ -29,6 +29,7 @@ import (
 	"github.com/storagebirddrop/abacus/internal/importer/strike"
 	"github.com/storagebirddrop/abacus/internal/repository"
 	abacussync "github.com/storagebirddrop/abacus/internal/sync"
+	"github.com/storagebirddrop/abacus/internal/sync/bitcoincore"
 	electrumbackend "github.com/storagebirddrop/abacus/internal/sync/electrum"
 	"github.com/storagebirddrop/abacus/internal/sync/esplora"
 )
@@ -120,6 +121,9 @@ func main() {
 				}
 			}
 			return electrumbackend.New(get("electrum_host", "electrum.blockstream.info"), port, get("electrum_tls", "true") == "true"), nil
+		case "bitcoincore":
+			rpcURL := get("bitcoincore_rpc_url", "http://127.0.0.1:8332")
+			return bitcoincore.New(rpcURL, get("bitcoincore_rpc_user", ""), get("bitcoincore_rpc_pass", "")), nil
 		default:
 			rateMS := 100
 			if v := m["esplora_rate_ms"]; v != "" {

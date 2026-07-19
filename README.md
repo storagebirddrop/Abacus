@@ -34,7 +34,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 - Builds an **immutable ledger** from your transaction history
 - Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
-- Syncs transaction history live via **Esplora or Electrum** — opt-in, configured via the Settings page
+- Syncs transaction history live via **Esplora, Electrum, or a self-hosted Bitcoin Core node** — opt-in, configured via the Settings page
 - Generates **tax reports** for the Netherlands (Box 3), Germany (§23 EStG), United Kingdom (HMRC CGT / Section 104), and United States (IRS Form 8949)
 - Generates **generic reports** (balance sheet, P&L, CSV/PDF/Excel)
 - Provides a **REST API** for all accounting data
@@ -214,7 +214,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Dark-first design system — real theming (dark and light both fully token-based, not just a background swap), single accent color, portfolio value/BTC-holdings history chart on the dashboard | ✅ |
 | Governance & onboarding docs — CODE_OF_CONDUCT, production deployment guide, README screenshots (Portfolio, Transactions, Accounting, Reports, Import, Settings) | ✅ |
 | Accessibility audit (aria attributes, keyboard navigation) | ✅ |
-| Bitcoin Core sync backend | 🔲 |
+| Bitcoin Core sync backend | ✅ |
 
 ## Community
 
