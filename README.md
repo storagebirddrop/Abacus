@@ -34,7 +34,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 - Builds an **immutable ledger** from your transaction history
 - Runs **FIFO, Average Cost, LIFO, HIFO, Specific ID, and UK Section 104** cost basis calculations
 - Tracks **UTXO age and cost basis** per coin
-- Syncs transaction history live via **Esplora or Electrum** — opt-in, configured via the Settings page
+- Syncs transaction history live via **Esplora, Electrum, or a self-hosted Bitcoin Core node** — opt-in, configured via the Settings page
 - Generates **tax reports** for the Netherlands (Box 3), Germany (§23 EStG), United Kingdom (HMRC CGT / Section 104), and United States (IRS Form 8949)
 - Generates **generic reports** (balance sheet, P&L, CSV/PDF/Excel)
 - Provides a **REST API** for all accounting data
@@ -50,7 +50,7 @@ Import your wallet data and get an immutable financial ledger with multi-method 
 
 Abacus works on **public wallet data only** (xpubs, addresses, txids) and is designed to run self-hosted and offline. It never stores or transmits keys or signing material, and encrypted Sparrow databases (`.mv.db`) are rejected outright.
 
-Blockchain sync is **opt-in and off by default**. When enabled, syncing queries the configured Esplora/Electrum server for your wallet's addresses — disclosing them, and the fact that they belong to one wallet, to that third party. For maximum privacy, point sync at an Esplora or Electrum instance you host yourself. Sync is configured at runtime in the in-app **Settings** page (persisted in SQLite; no restart needed).
+Blockchain sync is **opt-in and off by default**. When enabled, syncing queries the configured Esplora/Electrum server, or your configured Bitcoin Core node's RPC endpoint, for your wallet's addresses — disclosing them, and the fact that they belong to one wallet, to whatever's on the other end. This applies to Bitcoin Core too if that node is remote (e.g. hosted by someone else) rather than one you run yourself. For maximum privacy, point sync at an Esplora, Electrum, or Bitcoin Core instance you host yourself. Sync is configured at runtime in the in-app **Settings** page (persisted in SQLite; no restart needed).
 
 Wallet-import uploads are capped at 32 MiB.
 
@@ -214,7 +214,7 @@ API spec: [docs/api/swagger.yaml](docs/api/swagger.yaml)
 | Dark-first design system — real theming (dark and light both fully token-based, not just a background swap), single accent color, portfolio value/BTC-holdings history chart on the dashboard | ✅ |
 | Governance & onboarding docs — CODE_OF_CONDUCT, production deployment guide, README screenshots (Portfolio, Transactions, Accounting, Reports, Import, Settings) | ✅ |
 | Accessibility audit (aria attributes, keyboard navigation) | ✅ |
-| Bitcoin Core sync backend | 🔲 |
+| Bitcoin Core sync backend | ✅ |
 
 ## Community
 

@@ -21,6 +21,8 @@ const baseSettings: AppSettings = {
   electrum_host: 'electrum.blockstream.info',
   electrum_port: 50002,
   electrum_tls: true,
+  bitcoincore_rpc_url: 'http://127.0.0.1:8332',
+  bitcoincore_rpc_user: '',
 }
 
 beforeEach(() => {

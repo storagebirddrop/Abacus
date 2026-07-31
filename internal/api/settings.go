@@ -17,13 +17,15 @@ type settingsStore interface {
 
 // AppSettings holds all persisted application settings.
 type AppSettings struct {
-	SyncEnabled      bool   `json:"sync_enabled"`
-	BlockchainBackend string `json:"blockchain_backend"`
-	EsploraURL       string `json:"esplora_url"`
-	EsploraRateMS    int    `json:"esplora_rate_ms"`
-	ElectrumHost     string `json:"electrum_host"`
-	ElectrumPort     int    `json:"electrum_port"`
-	ElectrumTLS      bool   `json:"electrum_tls"`
+	SyncEnabled        bool   `json:"sync_enabled"`
+	BlockchainBackend  string `json:"blockchain_backend"`
+	EsploraURL         string `json:"esplora_url"`
+	EsploraRateMS      int    `json:"esplora_rate_ms"`
+	ElectrumHost       string `json:"electrum_host"`
+	ElectrumPort       int    `json:"electrum_port"`
+	ElectrumTLS        bool   `json:"electrum_tls"`
+	BitcoinCoreRPCURL  string `json:"bitcoincore_rpc_url"`
+	BitcoinCoreRPCUser string `json:"bitcoincore_rpc_user"`
 }
 
 var settingsDefaults = AppSettings{
@@ -34,6 +36,7 @@ var settingsDefaults = AppSettings{
 	ElectrumHost:      "electrum.blockstream.info",
 	ElectrumPort:      50002,
 	ElectrumTLS:       true,
+	BitcoinCoreRPCURL: "http://127.0.0.1:8332",
 }
 
 // SettingsHandler handles GET/PATCH /settings.
@@ -76,6 +79,12 @@ func loadSettings(ctx context.Context, repo settingsStore) (AppSettings, error) 
 	if v, ok := m["electrum_tls"]; ok {
 		s.ElectrumTLS = v == "true"
 	}
+	if v, ok := m["bitcoincore_rpc_url"]; ok {
+		s.BitcoinCoreRPCURL = v
+	}
+	if v, ok := m["bitcoincore_rpc_user"]; ok {
+		s.BitcoinCoreRPCUser = v
+	}
 	return s, nil
 }
 
@@ -92,13 +101,16 @@ func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 // UpdateSettings handles PATCH /settings.
 func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		SyncEnabled       *bool   `json:"sync_enabled"`
-		BlockchainBackend *string `json:"blockchain_backend"`
-		EsploraURL        *string `json:"esplora_url"`
-		EsploraRateMS     *int    `json:"esplora_rate_ms"`
-		ElectrumHost      *string `json:"electrum_host"`
-		ElectrumPort      *int    `json:"electrum_port"`
-		ElectrumTLS       *bool   `json:"electrum_tls"`
+		SyncEnabled        *bool   `json:"sync_enabled"`
+		BlockchainBackend  *string `json:"blockchain_backend"`
+		EsploraURL         *string `json:"esplora_url"`
+		EsploraRateMS      *int    `json:"esplora_rate_ms"`
+		ElectrumHost       *string `json:"electrum_host"`
+		ElectrumPort       *int    `json:"electrum_port"`
+		ElectrumTLS        *bool   `json:"electrum_tls"`
+		BitcoinCoreRPCURL  *string `json:"bitcoincore_rpc_url"`
+		BitcoinCoreRPCUser *string `json:"bitcoincore_rpc_user"`
+		BitcoinCoreRPCPass *string `json:"bitcoincore_rpc_pass"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -118,9 +130,9 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 	}
 	if req.BlockchainBackend != nil {
 		switch *req.BlockchainBackend {
-		case "esplora", "electrum":
+		case "esplora", "electrum", "bitcoincore":
 		default:
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "blockchain_backend must be esplora or electrum"})
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "blockchain_backend must be esplora, electrum, or bitcoincore"})
 			return
 		}
 		if err := set("blockchain_backend", *req.BlockchainBackend); err != nil {
@@ -158,6 +170,28 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 	}
 	if req.ElectrumTLS != nil {
 		if err := set("electrum_tls", strconv.FormatBool(*req.ElectrumTLS)); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+	if req.BitcoinCoreRPCURL != nil {
+		if *req.BitcoinCoreRPCURL == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bitcoincore_rpc_url cannot be empty"})
+			return
+		}
+		if err := set("bitcoincore_rpc_url", *req.BitcoinCoreRPCURL); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+	if req.BitcoinCoreRPCUser != nil {
+		if err := set("bitcoincore_rpc_user", *req.BitcoinCoreRPCUser); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+	if req.BitcoinCoreRPCPass != nil {
+		if err := set("bitcoincore_rpc_pass", *req.BitcoinCoreRPCPass); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
